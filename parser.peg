@@ -1,0 +1,54 @@
+{
+package feta
+
+import (
+	"bytes"
+	"regexp"
+	"strings"
+)
+
+func toList(v interface{}) []interface{} {
+    if v == nil {
+        return nil
+    }
+    return v.([]interface{})
+}
+}
+
+Selector = levels_:Level+ EOF
+{
+	levels := toList(levels_)
+	length := len(levels)
+	for i, l := range levels {
+		if i < length - 1 {
+			l.(*levelNode).next = levels[i+1].(*levelNode)
+		}
+	}
+	return levels[0], nil
+}
+
+Level = p:Pattern LevelStop
+{
+	n := &levelNode{}
+	n.directory = bytes.HasSuffix(c.text,[]byte("/"))
+	n.name = p.(*nameMatch)
+	return n, nil
+}
+
+// Recurse = "**/"
+// {
+// 	return &recurseLevel{}, nil
+// }
+
+Pattern = [^/]+
+{
+	Log("Parser: in 'Pattern'")
+	p := regexp.QuoteMeta(string(c.text))
+	p = strings.ReplaceAll(p, "\\*", ".*")
+	n := &nameMatch{rex: regexp.MustCompile(p)}
+	return n, nil
+}
+
+LevelStop = ('/' / EOF)
+
+EOF = !.
