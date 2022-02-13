@@ -14,7 +14,7 @@ func Get(query string, workDir string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't parse query '%s': %v", query, err)
 	}
-	objs, err := ast.(oNode).get(workDirObj)
+	objs, err := ast.(operator)(workDirObj)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't evaluate query '%s': %v", query, err)
 	}

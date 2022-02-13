@@ -28,22 +28,22 @@ func toList(v interface{}) []interface{} {
 var g = &grammar{
 	rules: []*rule{
 		{
-			name: "Selector",
+			name: "selector",
 			pos:  position{line: 18, col: 1, offset: 178},
 			expr: &actionExpr{
 				pos: position{line: 18, col: 12, offset: 189},
-				run: (*parser).callonSelector1,
+				run: (*parser).callonselector1,
 				expr: &seqExpr{
 					pos: position{line: 18, col: 12, offset: 189},
 					exprs: []interface{}{
 						&labeledExpr{
 							pos:   position{line: 18, col: 12, offset: 189},
-							label: "levels_",
+							label: "ops_",
 							expr: &oneOrMoreExpr{
-								pos: position{line: 18, col: 20, offset: 197},
+								pos: position{line: 18, col: 17, offset: 194},
 								expr: &ruleRefExpr{
-									pos:  position{line: 18, col: 20, offset: 197},
-									name: "Level",
+									pos:  position{line: 18, col: 17, offset: 194},
+									name: "operator",
 								},
 							},
 						},
@@ -56,40 +56,106 @@ var g = &grammar{
 			},
 		},
 		{
-			name: "Level",
-			pos:  position{line: 30, col: 1, offset: 393},
+			name: "operator",
+			pos:  position{line: 40, col: 1, offset: 640},
+			expr: &choiceExpr{
+				pos: position{line: 40, col: 12, offset: 651},
+				alternatives: []interface{}{
+					&ruleRefExpr{
+						pos:  position{line: 40, col: 12, offset: 651},
+						name: "recurse",
+					},
+					&ruleRefExpr{
+						pos:  position{line: 40, col: 22, offset: 661},
+						name: "relative",
+					},
+					&ruleRefExpr{
+						pos:  position{line: 40, col: 33, offset: 672},
+						name: "dir",
+					},
+					&ruleRefExpr{
+						pos:  position{line: 40, col: 39, offset: 678},
+						name: "pattern",
+					},
+				},
+			},
+		},
+		{
+			name: "dir",
+			pos:  position{line: 42, col: 1, offset: 687},
 			expr: &actionExpr{
-				pos: position{line: 30, col: 9, offset: 401},
-				run: (*parser).callonLevel1,
+				pos: position{line: 42, col: 7, offset: 693},
+				run: (*parser).callondir1,
+				expr: &litMatcher{
+					pos:        position{line: 42, col: 7, offset: 693},
+					val:        "/",
+					ignoreCase: false,
+				},
+			},
+		},
+		{
+			name: "relative",
+			pos:  position{line: 48, col: 1, offset: 749},
+			expr: &actionExpr{
+				pos: position{line: 48, col: 12, offset: 760},
+				run: (*parser).callonrelative1,
 				expr: &seqExpr{
-					pos: position{line: 30, col: 9, offset: 401},
+					pos: position{line: 48, col: 12, offset: 760},
 					exprs: []interface{}{
-						&labeledExpr{
-							pos:   position{line: 30, col: 9, offset: 401},
-							label: "p",
-							expr: &ruleRefExpr{
-								pos:  position{line: 30, col: 11, offset: 403},
-								name: "Pattern",
+						&zeroOrOneExpr{
+							pos: position{line: 48, col: 12, offset: 760},
+							expr: &litMatcher{
+								pos:        position{line: 48, col: 12, offset: 760},
+								val:        "/",
+								ignoreCase: false,
 							},
 						},
-						&ruleRefExpr{
-							pos:  position{line: 30, col: 19, offset: 411},
-							name: "LevelStop",
+						&labeledExpr{
+							pos:   position{line: 48, col: 17, offset: 765},
+							label: "rel_",
+							expr: &oneOrMoreExpr{
+								pos: position{line: 48, col: 22, offset: 770},
+								expr: &litMatcher{
+									pos:        position{line: 48, col: 22, offset: 770},
+									val:        ".",
+									ignoreCase: false,
+								},
+							},
+						},
+						&andExpr{
+							pos: position{line: 48, col: 27, offset: 775},
+							expr: &ruleRefExpr{
+								pos:  position{line: 48, col: 28, offset: 776},
+								name: "opStop",
+							},
 						},
 					},
 				},
 			},
 		},
 		{
-			name: "Pattern",
-			pos:  position{line: 43, col: 1, offset: 598},
+			name: "recurse",
+			pos:  position{line: 55, col: 1, offset: 881},
 			expr: &actionExpr{
-				pos: position{line: 43, col: 11, offset: 608},
-				run: (*parser).callonPattern1,
+				pos: position{line: 55, col: 11, offset: 891},
+				run: (*parser).callonrecurse1,
+				expr: &litMatcher{
+					pos:        position{line: 55, col: 11, offset: 891},
+					val:        "**/",
+					ignoreCase: false,
+				},
+			},
+		},
+		{
+			name: "pattern",
+			pos:  position{line: 61, col: 1, offset: 957},
+			expr: &actionExpr{
+				pos: position{line: 61, col: 11, offset: 967},
+				run: (*parser).callonpattern1,
 				expr: &oneOrMoreExpr{
-					pos: position{line: 43, col: 11, offset: 608},
+					pos: position{line: 61, col: 11, offset: 967},
 					expr: &charClassMatcher{
-						pos:        position{line: 43, col: 11, offset: 608},
+						pos:        position{line: 61, col: 11, offset: 967},
 						val:        "[^/]",
 						chars:      []rune{'/'},
 						ignoreCase: false,
@@ -99,18 +165,18 @@ var g = &grammar{
 			},
 		},
 		{
-			name: "LevelStop",
-			pos:  position{line: 52, col: 1, offset: 787},
+			name: "opStop",
+			pos:  position{line: 71, col: 1, offset: 1167},
 			expr: &choiceExpr{
-				pos: position{line: 52, col: 14, offset: 800},
+				pos: position{line: 71, col: 10, offset: 1176},
 				alternatives: []interface{}{
 					&litMatcher{
-						pos:        position{line: 52, col: 14, offset: 800},
+						pos:        position{line: 71, col: 10, offset: 1176},
 						val:        "/",
 						ignoreCase: false,
 					},
 					&ruleRefExpr{
-						pos:  position{line: 52, col: 20, offset: 806},
+						pos:  position{line: 71, col: 16, offset: 1182},
 						name: "EOF",
 					},
 				},
@@ -118,59 +184,91 @@ var g = &grammar{
 		},
 		{
 			name: "EOF",
-			pos:  position{line: 54, col: 1, offset: 812},
+			pos:  position{line: 73, col: 1, offset: 1187},
 			expr: &notExpr{
-				pos: position{line: 54, col: 7, offset: 818},
+				pos: position{line: 73, col: 7, offset: 1193},
 				expr: &anyMatcher{
-					line: 54, col: 8, offset: 819,
+					line: 73, col: 8, offset: 1194,
 				},
 			},
 		},
 	},
 }
 
-func (c *current) onSelector1(levels_ interface{}) (interface{}, error) {
-	levels := toList(levels_)
-	length := len(levels)
-	for i, l := range levels {
-		if i < length-1 {
-			l.(*levelNode).next = levels[i+1].(*levelNode)
+func (c *current) onselector1(ops_ interface{}) (interface{}, error) {
+	ops := toList(ops_)
+	length := len(ops)
+	last := ops[length-1].(opProducer).opProduce(nil)
+	for i := range ops {
+		if length-i-2 == -1 {
+			break
 		}
+		last = ops[length-i-2].(opProducer).opProduce(last)
 	}
-	return levels[0], nil
+	switch ops[0].(type) {
+	case *dirOp:
+		Log("Parser: added root op")
+		last = (&rootOp{}).opProduce(last)
+	case *patternOp:
+		Log("Parser: added boot op")
+		last = (&bootOp{}).opProduce(last)
+	}
+	return last, nil
 }
 
-func (p *parser) callonSelector1() (interface{}, error) {
+func (p *parser) callonselector1() (interface{}, error) {
 	stack := p.vstack[len(p.vstack)-1]
 	_ = stack
-	return p.cur.onSelector1(stack["levels_"])
+	return p.cur.onselector1(stack["ops_"])
 }
 
-func (c *current) onLevel1(p interface{}) (interface{}, error) {
-	n := &levelNode{}
-	n.directory = bytes.HasSuffix(c.text, []byte("/"))
-	n.name = p.(*nameMatch)
-	return n, nil
+func (c *current) ondir1() (interface{}, error) {
+	Log("Parser: in 'dir'")
+	return &dirOp{}, nil
 }
 
-func (p *parser) callonLevel1() (interface{}, error) {
+func (p *parser) callondir1() (interface{}, error) {
 	stack := p.vstack[len(p.vstack)-1]
 	_ = stack
-	return p.cur.onLevel1(stack["p"])
+	return p.cur.ondir1()
 }
 
-func (c *current) onPattern1() (interface{}, error) {
-	Log("Parser: in 'Pattern'")
+func (c *current) onrelative1(rel_ interface{}) (interface{}, error) {
+	Log("Parser: in 'relative'")
+	rel := toList(rel_)
+	return &relativeOp{count: len(rel)}, nil
+}
+
+func (p *parser) callonrelative1() (interface{}, error) {
+	stack := p.vstack[len(p.vstack)-1]
+	_ = stack
+	return p.cur.onrelative1(stack["rel_"])
+}
+
+func (c *current) onrecurse1() (interface{}, error) {
+	Log("Parser: in 'recurse'")
+	return &recurseOp{}, nil
+}
+
+func (p *parser) callonrecurse1() (interface{}, error) {
+	stack := p.vstack[len(p.vstack)-1]
+	_ = stack
+	return p.cur.onrecurse1()
+}
+
+func (c *current) onpattern1() (interface{}, error) {
+	Log("Parser: in 'pattern'")
 	p := regexp.QuoteMeta(string(c.text))
 	p = strings.ReplaceAll(p, "\\*", ".*")
-	n := &nameMatch{rex: regexp.MustCompile(p)}
-	return n, nil
+	p = "^" + p + "$"
+	op := &patternOp{rex: regexp.MustCompile(p)}
+	return op, nil
 }
 
-func (p *parser) callonPattern1() (interface{}, error) {
+func (p *parser) callonpattern1() (interface{}, error) {
 	stack := p.vstack[len(p.vstack)-1]
 	_ = stack
-	return p.cur.onPattern1()
+	return p.cur.onpattern1()
 }
 
 var (
