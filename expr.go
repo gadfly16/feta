@@ -76,7 +76,7 @@ type rootOp struct{}
 
 func (opp *rootOp) opProduce(next operator) operator {
 	return func(_ *object) ([]*object, error) {
-		return next(root)
+		return next(site)
 	}
 }
 

@@ -4,31 +4,30 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/gadfly16/feta"
 )
 
-type flags struct {
-	verbose bool
-	root    string
-}
-
-func defineFlags(fl *flags) {
-	flag.BoolVar(&fl.verbose, "v", false, "Verbose output")
-	flag.StringVar(&fl.root, "r", "/", "Root directory")
+func defineFlags(homeDir string) {
+	flag.BoolVar(&feta.Flags.Verbose, "v", false, "Verbose output")
+	flag.StringVar(&feta.Flags.SitePath, "S", homeDir, "Site directory path")
+	flag.BoolVar(&feta.Flags.SysAbs, "a", false, "System absolute output")
 }
 
 func setCmd() {
-
 }
 
 func main() {
-	var fl flags
-	defineFlags(&fl)
-	flag.Parse()
-	feta.SetVerbose(fl.verbose)
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		feta.Fatal(err)
+	}
 
-	err := feta.InitRoot(fl.root)
+	defineFlags(homeDir)
+	flag.Parse()
+
+	absSitePath, err := feta.InitSite(feta.Flags.SitePath)
 	if err != nil {
 		feta.Fatal(err)
 	}
@@ -36,6 +35,10 @@ func main() {
 	wd, err := os.Getwd()
 	if err != nil {
 		feta.Fatal(err)
+	}
+
+	if !strings.HasPrefix(wd, absSitePath) {
+		feta.Fatal("Invocation dir must be under site path:" + absSitePath)
 	}
 
 	switch flag.Arg(0) {

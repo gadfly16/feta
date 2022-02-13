@@ -139,23 +139,36 @@ var g = &grammar{
 			expr: &actionExpr{
 				pos: position{line: 55, col: 11, offset: 891},
 				run: (*parser).callonrecurse1,
-				expr: &litMatcher{
-					pos:        position{line: 55, col: 11, offset: 891},
-					val:        "**/",
-					ignoreCase: false,
+				expr: &seqExpr{
+					pos: position{line: 55, col: 11, offset: 891},
+					exprs: []interface{}{
+						&zeroOrOneExpr{
+							pos: position{line: 55, col: 11, offset: 891},
+							expr: &litMatcher{
+								pos:        position{line: 55, col: 11, offset: 891},
+								val:        "/",
+								ignoreCase: false,
+							},
+						},
+						&litMatcher{
+							pos:        position{line: 55, col: 16, offset: 896},
+							val:        "**/",
+							ignoreCase: false,
+						},
+					},
 				},
 			},
 		},
 		{
 			name: "pattern",
-			pos:  position{line: 61, col: 1, offset: 957},
+			pos:  position{line: 61, col: 1, offset: 962},
 			expr: &actionExpr{
-				pos: position{line: 61, col: 11, offset: 967},
+				pos: position{line: 61, col: 11, offset: 972},
 				run: (*parser).callonpattern1,
 				expr: &oneOrMoreExpr{
-					pos: position{line: 61, col: 11, offset: 967},
+					pos: position{line: 61, col: 11, offset: 972},
 					expr: &charClassMatcher{
-						pos:        position{line: 61, col: 11, offset: 967},
+						pos:        position{line: 61, col: 11, offset: 972},
 						val:        "[^/]",
 						chars:      []rune{'/'},
 						ignoreCase: false,
@@ -166,17 +179,17 @@ var g = &grammar{
 		},
 		{
 			name: "opStop",
-			pos:  position{line: 71, col: 1, offset: 1167},
+			pos:  position{line: 71, col: 1, offset: 1172},
 			expr: &choiceExpr{
-				pos: position{line: 71, col: 10, offset: 1176},
+				pos: position{line: 71, col: 10, offset: 1181},
 				alternatives: []interface{}{
 					&litMatcher{
-						pos:        position{line: 71, col: 10, offset: 1176},
+						pos:        position{line: 71, col: 10, offset: 1181},
 						val:        "/",
 						ignoreCase: false,
 					},
 					&ruleRefExpr{
-						pos:  position{line: 71, col: 16, offset: 1182},
+						pos:  position{line: 71, col: 16, offset: 1187},
 						name: "EOF",
 					},
 				},
@@ -184,11 +197,11 @@ var g = &grammar{
 		},
 		{
 			name: "EOF",
-			pos:  position{line: 73, col: 1, offset: 1187},
+			pos:  position{line: 73, col: 1, offset: 1192},
 			expr: &notExpr{
-				pos: position{line: 73, col: 7, offset: 1193},
+				pos: position{line: 73, col: 7, offset: 1198},
 				expr: &anyMatcher{
-					line: 73, col: 8, offset: 1194,
+					line: 73, col: 8, offset: 1199,
 				},
 			},
 		},

@@ -11,8 +11,7 @@ import (
 )
 
 var (
-	root     *object
-	rootPath string
+	site *object
 )
 
 type object struct {
@@ -32,28 +31,49 @@ func newObject(parent *object, dirEntry os.DirEntry) (o *object) {
 	return o
 }
 
-func (o *object) path() string {
-	if o == root {
-		return rootPath
+func (o *object) sysPath() string {
+	if o == site {
+		return Flags.SitePath
 	}
 	path := ""
-	for o != root {
+	if o.dirEntry.IsDir() {
+		path = "/"
+	}
+	for o != site {
 		path = "/" + o.dirEntry.Name() + path
 		o = o.parent
 	}
-	if rootPath != "/" {
-		path = rootPath + path
+	if Flags.SitePath != "/" {
+		path = Flags.SitePath + path
+	}
+	return path
+}
+
+func (o *object) fetaPath() string {
+	if o == site {
+		return "/"
+	}
+	path := ""
+	if o.dirEntry.IsDir() {
+		path = "/"
+	}
+	for o != site {
+		path = "/" + o.dirEntry.Name() + path
+		o = o.parent
 	}
 	return path
 }
 
 func (o *object) MarshalJSON() ([]byte, error) {
-	return json.Marshal(o.path())
+	if Flags.SysAbs {
+		return json.Marshal(o.sysPath())
+	}
+	return json.Marshal(o.fetaPath())
 }
 
 func (o *object) getChildren() ([]*object, error) {
 	if o.children == nil {
-		des, err := os.ReadDir(o.path())
+		des, err := os.ReadDir(o.sysPath())
 		if err != nil {
 			return nil, err
 		}
@@ -81,31 +101,30 @@ func (o *object) find(pathList []string) (*object, error) {
 }
 
 func getObject(path string) (*object, error) {
-	if path == rootPath {
-		return root, nil
+	if path == Flags.SitePath {
+		return site, nil
 	}
-	o, err := root.find(strings.Split(trimRootPath(path), "/"))
+	o, err := site.find(strings.Split(trimSitePath(path), "/"))
 	return o, err
 }
 
-func trimRootPath(path string) string {
-	if rootPath == "/" {
-		return strings.TrimPrefix(path, rootPath)
+func trimSitePath(path string) string {
+	if Flags.SitePath == "/" {
+		return strings.TrimPrefix(path, Flags.SitePath)
 	}
-	return strings.TrimPrefix(path, rootPath+"/")
+	return strings.TrimPrefix(path, Flags.SitePath+"/")
 }
 
-func InitRoot(path string) error {
+func InitSite(path string) (string, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("Couldn't create absolute path from '%s': %v", path, err)
+		return "", fmt.Errorf("Couldn't create absolute path from '%s': %v", path, err)
 	}
-	rootPath = absPath
 	fi, err := os.Stat(absPath)
 	if err != nil {
-		return fmt.Errorf("Couldn't init root '%s': %v", absPath, err)
+		return "", fmt.Errorf("Couldn't stat site path '%s': %v", absPath, err)
 	}
-	root = newObject(nil, fs.FileInfoToDirEntry(fi))
-	Log(fmt.Sprintf("Root set to: %s", absPath))
-	return nil
+	site = newObject(nil, fs.FileInfoToDirEntry(fi))
+	Log(fmt.Sprintf("Site set to: %s", absPath))
+	return absPath, nil
 }

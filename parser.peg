@@ -52,7 +52,7 @@ relative = '/'? rel_:'.'+ &opStop
 	return &relativeOp{count: len(rel)}, nil
 }
 
-recurse = "**/"
+recurse = '/'? "**/"
 {
 	Log("Parser: in 'recurse'")
 	return &recurseOp{}, nil
