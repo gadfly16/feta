@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,7 @@ type object struct {
 	dirEntry os.DirEntry
 	parent   *object
 	children []*object
-	meta     MMap
+	meta     fType
 }
 
 func newObject(parent *object, dirEntry os.DirEntry) (o *object) {
@@ -127,4 +128,35 @@ func InitSite(path string) (string, error) {
 	site = newObject(nil, fs.FileInfoToDirEntry(fi))
 	Log(fmt.Sprintf("Site set to: %s", absPath))
 	return absPath, nil
+}
+
+func (o *object) getMeta() (fType, error) {
+	if o.meta != nil {
+		return o.meta, nil
+	}
+	path := o.sysPath()
+	if o.dirEntry.IsDir() {
+		path = path + ".feta/_"
+	} else {
+		path = filepath.Dir(path) + "/.feta/" + o.dirEntry.Name() + "._"
+	}
+
+	js, err := ioutil.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fDict{}, nil
+		}
+		return nil, fmt.Errorf("Couldn't read meta file: %v", err)
+	}
+	raw := make(map[string]interface{})
+	err = json.Unmarshal(js, &raw)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't unmarshal meta file '%s': %v", path, err)
+	}
+	meta, err := typeConvert(raw)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't type-convert meta file '%s': %v", path, err)
+	}
+	o.meta = meta
+	return meta, nil
 }

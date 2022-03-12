@@ -15,16 +15,19 @@ func toList(v interface{}) []interface{} {
 }
 }
 
-selector = ops_:operator+ EOF
+query = ops_:operator* tail:tail? EOF
 {
 	ops := toList(ops_)
 	length := len(ops)
-	last := ops[length-1].(opProducer).opProduce(nil)
-	for i := range ops {
-		if length-i-2 == -1 {
-			break
-		}
-		last = ops[length-i-2].(opProducer).opProduce(last)
+	var last operator
+	if tail != nil {
+		last = tail.(opProducer).opProduce(nil)
+	}
+	if length == 0 {
+		return (&relativeOp{count:1}).opProduce(last), nil
+	}
+	for i := length - 1; i >= 0; i-- {
+		last = ops[i].(opProducer).opProduce(last)
 	}
 	switch ops[0].(type) {
 		case *dirOp:
@@ -32,12 +35,39 @@ selector = ops_:operator+ EOF
 			last = (&rootOp{}).opProduce(last)
 		case *patternOp:
 			Log("Parser: added boot op")
-			last = (&bootOp{}).opProduce(last)
+			last = (&dirOp{}).opProduce(last)
 	}
 	return last, nil
 }
 
+// Expression nodes
+
+expression = resolver
+
+resolver = first:key '.' next:resolver
+{
+	Log("Parser: in compound resolver")
+	return &keyNode{key: first.(string), next: next.(exprNode)}, nil
+}
+/ single:key
+{
+	Log("Parser: in single resolver")
+	return &keyNode{key: single.(string)}, nil
+}
+
+key = [\pL]+
+{
+	return string(c.text), nil
+}
+
+// Operators
 operator = recurse / relative / dir / pattern
+
+tail = '@' expr:expression
+{
+	Log("Parser: in tail operator")
+	return &tailOp{expr: expr.(exprNode)}, nil
+}
 
 dir = '/'
 {
@@ -58,7 +88,7 @@ recurse = '/'? "**/"
 	return &recurseOp{}, nil
 }
 
-pattern = [^/]+
+pattern = [^/@]+
 {
 	Log("Parser: in 'pattern'")
 	p := regexp.QuoteMeta(string(c.text))
@@ -68,6 +98,6 @@ pattern = [^/]+
 	return op, nil
 }
 
-opStop = '/' / EOF
+opStop = '/' / EOF / '@'
 
 EOF = !.

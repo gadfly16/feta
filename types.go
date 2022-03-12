@@ -1,49 +1,70 @@
 package feta
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
 
-type Meta interface {
+type fType interface {
 }
 
-type MNumber float64
-type MText string
-type MTime time.Time
-type MExp string
-type MMap map[string]Meta
-type MList []Meta
+type fNumber float64
+type fText string
+type fTime time.Time
+type fExpr string
+type fDict map[string]fType
+type fList []fType
 
-func (t MTime) String() string {
+type fError struct {
+	msg string
+}
+
+func (e fError) Error() string {
+	return e.msg
+}
+
+func (e fError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(e.msg)
+}
+
+func (t fTime) String() string {
 	return time.Time(t).Format(time.RFC3339)
 }
 
-func (t MTime) MarshalJSON() ([]byte, error) {
+func (t fTime) MarshalJSON() ([]byte, error) {
 	return []byte("\"T" + t.String() + "\""), nil
 }
 
-func (x MExp) MarshalJSON() ([]byte, error) {
+func (x fExpr) MarshalJSON() ([]byte, error) {
 	return []byte("\"=" + x + "\""), nil
 }
 
-func TypeConvert(i interface{}) (Meta, error) {
+func typeConvert(i interface{}) (fType, error) {
 	switch t := i.(type) {
 	case map[string]interface{}:
-		m := make(MMap)
-		var err error
+		m := make(fDict)
 		for k, v := range t {
-			m[k], err = TypeConvert(v)
+			fv, err := typeConvert(v)
 			if err != nil {
-				return MNumber(0), err
+				return nil, err
 			}
+			m[k] = fv
 		}
 		return m, nil
+	case []interface{}:
+		l := make(fList, 1)
+		for _, v := range t {
+			fv, err := typeConvert(v)
+			if err != nil {
+				return nil, err
+			}
+			l = append(l, fv)
+		}
 	case float64:
-		return MNumber(t), nil
+		return fNumber(t), nil
 	case string:
-		return MText(t), nil
-	default:
-		return MNumber(0), errors.New("Unknown type found.")
+		return fText(t), nil
 	}
+	return nil, errors.New("Unknown type found.")
 }

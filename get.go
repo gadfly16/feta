@@ -14,13 +14,10 @@ func Get(query string, workDir string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't parse query '%s': %v", query, err)
 	}
-	objs, err := ast.(operator)(workDirObj)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't evaluate query '%s': %v", query, err)
-	}
-	res, err := json.MarshalIndent(objs, "", "  ")
+	res := ast.(operator)(&context{obj: workDirObj})
+	j, err := json.MarshalIndent(res, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't marshal objects: %v", err)
 	}
-	return res, nil
+	return j, nil
 }
