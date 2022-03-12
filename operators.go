@@ -60,23 +60,6 @@ func (opp *patternOp) opProduce(next operator) operator {
 	}
 }
 
-type bootOp struct{}
-
-func (opp *bootOp) opProduce(next operator) operator {
-	return func(ctx *context) []*result {
-		chs, err := ctx.obj.getChildren()
-		if err != nil {
-			return []*result{{Obj: ctx.obj, Err: fError{err.Error()}}}
-		}
-		res := []*result{}
-		for _, ch := range chs {
-			chRes := next(&context{ch, ctx.meta})
-			res = append(res, chRes...)
-		}
-		return res
-	}
-}
-
 type rootOp struct{}
 
 func (opp *rootOp) opProduce(next operator) operator {
