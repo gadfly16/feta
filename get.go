@@ -15,7 +15,7 @@ func Get(query string, workDir string) ([]byte, error) {
 		return nil, fmt.Errorf("Couldn't parse query '%s': %v", query, err)
 	}
 	res := ast.(operator)(&context{obj: workDirObj})
-	j, err := json.MarshalIndent(res, "", "  ")
+	j, err := json.Marshal(res)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't marshal objects: %v", err)
 	}

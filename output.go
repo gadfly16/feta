@@ -1,6 +1,8 @@
 package feta
 
-import "log"
+import (
+	"log"
+)
 
 func Log(m interface{}) {
 	if Flags.Verbose {

@@ -2,7 +2,9 @@
 
 package feta
 
-import "regexp"
+import (
+	"regexp"
+)
 
 type context struct {
 	obj  *object
@@ -10,9 +12,9 @@ type context struct {
 }
 
 type result struct {
-	Obj    *object
-	Result fType `json:",omitempty"`
-	Err    error `json:",omitempty"`
+	Obj    *object `json:",omitempty"`
+	Result fType   `json:",omitempty"`
+	Error  error   `json:",omitempty"`
 }
 
 type operator func(*context) []*result
@@ -30,7 +32,7 @@ func (opp *dirOp) opProduce(next operator) operator {
 				res := []*result{}
 				chs, err := ctx.obj.getChildren()
 				if err != nil {
-					return []*result{{Obj: ctx.obj, Err: fError{err.Error()}}}
+					return []*result{{Obj: ctx.obj, Error: fError{err.Error()}}}
 				}
 				for _, ch := range chs {
 					chRes := next(&context{ch, ctx.meta})
@@ -77,6 +79,9 @@ func (opp *relativeOp) opProduce(next operator) operator {
 		anch := ctx.obj
 		for i := 1; i < opp.count; i++ {
 			anch = anch.parent
+			if anch == nil {
+				return []*result{{Error: fError{"Invalid relative reference from " + ctx.obj.fetaPath()}}}
+			}
 		}
 		if next != nil {
 			return next(&context{anch, ctx.meta})
@@ -90,7 +95,7 @@ type recurseOp struct{}
 func walk(ctx *context, next operator) []*result {
 	chs, err := ctx.obj.getChildren()
 	if err != nil {
-		return []*result{{Obj: ctx.obj, Err: fError{err.Error()}}}
+		return []*result{{Obj: ctx.obj, Error: fError{err.Error()}}}
 	}
 	res := []*result{}
 	for _, ch := range chs {
@@ -125,7 +130,7 @@ func (opp *tailOp) opProduce(next operator) operator {
 		}}
 		ns, err := ctx.obj.getMeta()
 		if err != nil {
-			res[0].Err = fError{err.Error()}
+			res[0].Error = fError{err.Error()}
 			return res
 		}
 		meta, err := opp.expr.eval(ns)

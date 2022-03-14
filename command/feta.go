@@ -3,20 +3,25 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
+
+	"github.com/tidwall/pretty"
 
 	"github.com/gadfly16/feta"
 )
 
 func defineFlags(homeDir string) {
-	flag.BoolVar(&feta.Flags.Verbose, "v", false, "Verbose output")
-	flag.StringVar(&feta.Flags.SitePath, "S", homeDir, "Site directory path")
-	flag.BoolVar(&feta.Flags.SysAbs, "a", false, "System absolute output")
+	if flag.Lookup("v") == nil {
+		flag.BoolVar(&feta.Flags.Verbose, "v", false, "Verbose output")
+		flag.StringVar(&feta.Flags.SitePath, "S", homeDir, "Site directory path")
+		flag.BoolVar(&feta.Flags.SysAbs, "a", false, "System absolute output")
+		flag.BoolVar(&feta.Flags.UglyJSON, "u", false, "Ugly JSON output")
+	}
 }
 
-func setCmd() {
-}
+var out io.Writer = os.Stdout
 
 func main() {
 	homeDir, err := os.UserHomeDir()
@@ -47,36 +52,15 @@ func main() {
 		if err != nil {
 			feta.Fatal(err)
 		}
-		fmt.Println(string(res))
-	case "set":
-		setCmd()
+		if feta.Flags.UglyJSON {
+			res = append(res, '\n')
+		} else {
+			res = pretty.Color(pretty.Pretty(res), nil)
+		}
+		fmt.Fprint(out, string(res))
+	// case "set":
+	// 	setCmd()
 	default:
 		feta.Fatal("Unknown command: " + flag.Arg(0))
 	}
-
-	// m := make(ul.MMap)
-	// m["number"] = ul.MNumber(123.34)
-	// m["text"] = ul.MText("breeze")
-	// m["time"] = ul.MTime(time.Now())
-	// m["expression"] = ul.MExp("1+1")
-
-	// ul.Log(m)
-	// fmt.Printf("%T\n", m["number"])
-	// j, err := json.Marshal(m)
-	// if err != nil {
-	// 	ul.Fatal(err)
-	// }
-	// fmt.Printf("%s\n", j)
-
-	// m_ := make(map[string]interface{})
-	// json.Unmarshal(j, &m_)
-	// fmt.Println(m_)
-	// m__, err := ul.TypeConvert(m_)
-	// if err != nil {
-	// 	ul.Fatal(err)
-	// }
-	// switch v := m__.(type) {
-	// case ul.MMap:
-	// 	fmt.Printf("%T\n", v["time"])
-	// }
 }

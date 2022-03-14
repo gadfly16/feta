@@ -79,7 +79,9 @@ func (o *object) getChildren() ([]*object, error) {
 			return nil, err
 		}
 		for _, de := range des {
-			o.children = append(o.children, newObject(o, de))
+			if de.Name() != ".feta" {
+				o.children = append(o.children, newObject(o, de))
+			}
 		}
 	}
 	return o.children, nil

@@ -34,7 +34,7 @@ query = ops_:operator* tail:tail? EOF
 			Log("Parser: added root op")
 			last = (&rootOp{}).opProduce(last)
 		case *patternOp:
-			Log("Parser: added boot op")
+			Log("Parser: added dir op")
 			last = (&dirOp{}).opProduce(last)
 	}
 	return last, nil
