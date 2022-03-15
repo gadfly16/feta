@@ -15,8 +15,7 @@ func toList(v interface{}) []interface{} {
 }
 }
 
-query = ops_:operator* tail:tail? EOF
-{
+Query = ops_:Operator* tail:Tail? EOF {
 	ops := toList(ops_)
 	length := len(ops)
 	var last operator
@@ -42,54 +41,93 @@ query = ops_:operator* tail:tail? EOF
 
 // Expression nodes
 
-expression = resolver
+Expression = first:Level_A rest_:(Comparison Level_A)* {
+	left := first.(exprNode)
+	rest := toList(rest_)
+	for _, comp_ := range rest {
+		comp := toList(comp_)
+		node := comp[0].(*compNode)
+		node.left = left
+		node.right = comp[1].(exprNode)
+		left = node 
+	}
+	return left, nil
+}
 
-resolver = first:key '.' next:resolver
-{
+Comparison = ("==" / "<=" / ">=" / "<" / ">") {
+	switch string(c.text) {
+	case "==":
+		Log("Parser: Egual comparison")
+		return &compNode{op: EQ}, nil
+	case "<=":
+		return &compNode{op: LEEQ}, nil
+	case ">=":
+		return &compNode{op: GREQ}, nil
+	case "<":
+		return &compNode{op: LE}, nil
+	}
+	return &compNode{op: GR}, nil
+}
+
+Level_A = Value
+
+Value = Number / Resolver
+
+Resolver = first:Key '.' next:Resolver {
 	Log("Parser: in compound resolver")
 	return &keyNode{key: first.(string), next: next.(exprNode)}, nil
-}
-/ single:key
-{
+} / single:Key {
 	Log("Parser: in single resolver")
 	return &keyNode{key: single.(string)}, nil
 }
 
-key = [\pL]+
+Key = [\pL]+
 {
 	return string(c.text), nil
 }
 
-// Operators
-operator = recurse / relative / dir / pattern
-
-tail = '@' expr:expression
-{
-	Log("Parser: in tail operator")
-	return &tailOp{expr: expr.(exprNode)}, nil
+Number ← '-'? Integer ( '.' DecimalDigit+ )? Exponent? {
+    v, err := strconv.ParseFloat(string(c.text), 64)
+    return &numberNode{value: fNumber(v)}, err
 }
 
-dir = '/'
-{
+Integer ← '0' / NonZeroDecimalDigit DecimalDigit*
+
+Exponent ← 'e'i [+-]? DecimalDigit+
+
+DecimalDigit ← [0-9]
+
+NonZeroDecimalDigit ← [1-9]
+
+
+// Operators
+
+Operator = Recurse / Relative / Dir / Pattern
+
+Tail = '@' expr:Expression {
+	Log("Parser: in tail operator")
+	return &tailOp{expr: expr.(exprNode)}, nil
+} / '@' {
+	return &tailOp{}, nil
+}
+
+Dir = '/' {
 	Log("Parser: in 'dir'")
 	return &dirOp{}, nil
 }
 
-relative = '/'? rel_:'.'+ &opStop
-{
+Relative = '/'? rel_:'.'+ &OpStop {
 	Log("Parser: in 'relative'")
 	rel := toList(rel_)
 	return &relativeOp{count: len(rel)}, nil
 }
 
-recurse = '/'? "**/"
-{
+Recurse = '/'? "**/" {
 	Log("Parser: in 'recurse'")
 	return &recurseOp{}, nil
 }
 
-pattern = [^/@]+
-{
+Pattern = [^/@]+ {
 	Log("Parser: in 'pattern'")
 	p := regexp.QuoteMeta(string(c.text))
 	p = strings.ReplaceAll(p, "\\*", ".*")
@@ -98,6 +136,6 @@ pattern = [^/@]+
 	return op, nil
 }
 
-opStop = '/' / EOF / '@'
+OpStop = '/' / EOF / '@'
 
 EOF = !.

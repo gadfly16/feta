@@ -9,6 +9,7 @@ import (
 type fType interface {
 }
 
+type fBool bool
 type fNumber float64
 type fText string
 type fTime time.Time

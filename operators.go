@@ -8,7 +8,7 @@ import (
 
 type context struct {
 	obj  *object
-	meta fDict
+	meta fType
 }
 
 type result struct {
@@ -133,7 +133,15 @@ func (opp *tailOp) opProduce(next operator) operator {
 			res[0].Error = fError{err.Error()}
 			return res
 		}
-		meta, err := opp.expr.eval(ns)
+		if opp.expr == nil {
+			res[0].Result = ns
+			return res
+		}
+		meta, err := opp.expr.eval(&context{obj: ctx.obj, meta: ns})
+		if err != nil {
+			res[0].Error = fError{err.Error()}
+			return res
+		}
 		res[0].Result = meta
 		return res
 	}
