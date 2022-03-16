@@ -69,9 +69,43 @@ Comparison = ("==" / "<=" / ">=" / "<" / ">") {
 	return &compNode{op: GR}, nil
 }
 
-Level_A = Value
+Level_A = first:Level_B rest_:(Additive Level_B)* {
+	left := first.(exprNode)
+	rest := toList(rest_)
+	for _, comp_ := range rest {
+		comp := toList(comp_)
+		node := comp[0].(*addNode)
+		node.left = left
+		node.right = comp[1].(exprNode)
+		left = node 
+	}
+	return left, nil
+}
 
-Value = Number / Resolver
+Additive = ('+' / '-') {
+	return &addNode{op: c.text[0]}, nil
+}
+
+Level_B = first:Level_C rest_:(Multiplicative Level_C)* {
+	left := first.(exprNode)
+	rest := toList(rest_)
+	for _, comp_ := range rest {
+		comp := toList(comp_)
+		node := comp[0].(*multNode)
+		node.left = left
+		node.right = comp[1].(exprNode)
+		left = node 
+	}
+	return left, nil
+}
+
+Multiplicative = ('*' / '/') {
+	return &multNode{op: c.text[0]}, nil
+}
+
+Level_C = Number / Resolver / '(' expr:Expression ')' {
+	return expr, nil
+}
 
 Resolver = first:Key '.' next:Resolver {
 	Log("Parser: in compound resolver")

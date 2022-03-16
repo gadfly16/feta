@@ -34,6 +34,12 @@ func (node *numberNode) eval(ctx *context) (fType, error) {
 	return node.value, nil
 }
 
+type compNode struct {
+	op    byte
+	left  exprNode
+	right exprNode
+}
+
 const (
 	EQ = iota
 	LEEQ
@@ -41,12 +47,6 @@ const (
 	LE
 	GR
 )
-
-type compNode struct {
-	op    byte
-	left  exprNode
-	right exprNode
-}
 
 func (node *compNode) eval(ctx *context) (fType, error) {
 	left, err := node.left.eval(ctx)
@@ -77,4 +77,62 @@ func (node *compNode) eval(ctx *context) (fType, error) {
 		}
 	}
 	return nil, errors.New("Only numbers can be compared.")
+}
+
+type addNode struct {
+	op    byte
+	left  exprNode
+	right exprNode
+}
+
+func (node *addNode) eval(ctx *context) (fType, error) {
+	left, err := node.left.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+	right, err := node.right.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch l := left.(type) {
+	case fNumber:
+		r, same := right.(fNumber)
+		if !same {
+			return nil, errors.New("Nubers can only be added to numbers.")
+		}
+		if node.op == '+' {
+			return l + r, nil
+		}
+		return l - r, nil
+	}
+	return nil, errors.New("Only numbers can be added.")
+}
+
+type multNode struct {
+	op    byte
+	left  exprNode
+	right exprNode
+}
+
+func (node *multNode) eval(ctx *context) (fType, error) {
+	left, err := node.left.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+	right, err := node.right.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch l := left.(type) {
+	case fNumber:
+		r, same := right.(fNumber)
+		if !same {
+			return nil, errors.New("Nubers can only be multiplied by numbers.")
+		}
+		if node.op == '*' {
+			return l * r, nil
+		}
+		return l / r, nil
+	}
+	return nil, errors.New("Only numbers can be multiplied.")
 }
