@@ -26,22 +26,6 @@ func (node *keyNode) eval(ctx *context) (fType, error) {
 	return nil, errors.New("Trying to access name in non-object type.")
 }
 
-type stringNode struct {
-	value fString
-}
-
-func (node *stringNode) eval(ctx *context) (fType, error) {
-	return node.value, nil
-}
-
-type numberNode struct {
-	value fNumber
-}
-
-func (node *numberNode) eval(ctx *context) (fType, error) {
-	return node.value, nil
-}
-
 type compNode struct {
 	op    byte
 	left  exprNode
@@ -69,7 +53,7 @@ func (node *compNode) eval(ctx *context) (fType, error) {
 	case fNumber:
 		r, same := right.(fNumber)
 		if !same {
-			return nil, errors.New("Nubers can only be compared to numbers.")
+			return nil, errors.New("Numbers can only be compared to numbers.")
 		}
 		switch node.op {
 		case EQ:
@@ -129,8 +113,17 @@ func (node *addNode) eval(ctx *context) (fType, error) {
 			return l + r, nil
 		}
 		return l - r, nil
+	case fString:
+		r, same := right.(fString)
+		if !same {
+			return nil, errors.New("Strings can only be added to strings.")
+		}
+		if node.op == '+' {
+			return l + r, nil
+		}
+		return nil, errors.New("Strings can not be subtracted from strings.")
 	}
-	return nil, errors.New("Only numbers can be added.")
+	return nil, errors.New("Only numbers and strings can be added.")
 }
 
 type multNode struct {

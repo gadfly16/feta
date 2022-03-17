@@ -10,10 +10,19 @@ type fType interface {
 }
 
 type fBool bool
+
 type fNumber float64
+
+func (value fNumber) eval(ctx *context) (fType, error) {
+	return value, nil
+}
+
 type fString string
-type fTime time.Time
-type fExpr string
+
+func (value fString) eval(ctx *context) (fType, error) {
+	return value, nil
+}
+
 type fDict map[string]fType
 type fList []fType
 
@@ -29,6 +38,8 @@ func (e fError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(e.msg)
 }
 
+type fTime time.Time
+
 func (t fTime) String() string {
 	return time.Time(t).Format(time.RFC3339)
 }
@@ -36,6 +47,8 @@ func (t fTime) String() string {
 func (t fTime) MarshalJSON() ([]byte, error) {
 	return []byte("\"T" + t.String() + "\""), nil
 }
+
+type fExpr string
 
 func (x fExpr) MarshalJSON() ([]byte, error) {
 	return []byte("\"=" + x + "\""), nil
