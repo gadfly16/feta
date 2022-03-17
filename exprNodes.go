@@ -26,6 +26,14 @@ func (node *keyNode) eval(ctx *context) (fType, error) {
 	return nil, errors.New("Trying to access name in non-object type.")
 }
 
+type stringNode struct {
+	value fString
+}
+
+func (node *stringNode) eval(ctx *context) (fType, error) {
+	return node.value, nil
+}
+
 type numberNode struct {
 	value fNumber
 }
@@ -75,8 +83,25 @@ func (node *compNode) eval(ctx *context) (fType, error) {
 		case GR:
 			return fBool(l > r), nil
 		}
+	case fString:
+		r, same := right.(fString)
+		if !same {
+			return nil, errors.New("Strings can only be compared to strings.")
+		}
+		switch node.op {
+		case EQ:
+			return fBool(l == r), nil
+		case LEEQ:
+			return fBool(l <= r), nil
+		case GREQ:
+			return fBool(l >= r), nil
+		case LE:
+			return fBool(l < r), nil
+		case GR:
+			return fBool(l > r), nil
+		}
 	}
-	return nil, errors.New("Only numbers can be compared.")
+	return nil, errors.New("Only numbers and strings can be compared.")
 }
 
 type addNode struct {

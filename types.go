@@ -11,7 +11,7 @@ type fType interface {
 
 type fBool bool
 type fNumber float64
-type fText string
+type fString string
 type fTime time.Time
 type fExpr string
 type fDict map[string]fType
@@ -65,7 +65,7 @@ func typeConvert(i interface{}) (fType, error) {
 	case float64:
 		return fNumber(t), nil
 	case string:
-		return fText(t), nil
+		return fString(t), nil
 	}
 	return nil, errors.New("Unknown type found.")
 }

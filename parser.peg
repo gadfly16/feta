@@ -103,7 +103,7 @@ Multiplicative = ('*' / '/') {
 	return &multNode{op: c.text[0]}, nil
 }
 
-Level_C = Number / Resolver / '(' expr:Expression ')' {
+Level_C = Number / String / Resolver / '(' expr:Expression ')' {
 	return expr, nil
 }
 
@@ -115,24 +115,37 @@ Resolver = first:Key '.' next:Resolver {
 	return &keyNode{key: single.(string)}, nil
 }
 
-Key = [\pL]+
-{
+Key = [\pL]+ {
 	return string(c.text), nil
 }
 
-Number ← '-'? Integer ( '.' DecimalDigit+ )? Exponent? {
-    v, err := strconv.ParseFloat(string(c.text), 64)
-    return &numberNode{value: fNumber(v)}, err
+Number = '-'? Integer ( '.' DecimalDigit+ )? Exponent? {
+    n, err := strconv.ParseFloat(string(c.text), 64)
+    return &numberNode{value: fNumber(n)}, err
 }
 
-Integer ← '0' / NonZeroDecimalDigit DecimalDigit*
+Integer = '0' / NonZeroDecimalDigit DecimalDigit*
 
-Exponent ← 'e'i [+-]? DecimalDigit+
+Exponent = 'e'i [+-]? DecimalDigit+
 
-DecimalDigit ← [0-9]
+DecimalDigit = [0-9]
 
-NonZeroDecimalDigit ← [1-9]
+NonZeroDecimalDigit = [1-9]
 
+String = '"' ( !EscapedChar . / '\\' EscapeSequence )* '"' {
+    // TODO : the forward slash (solidus) is not a valid escape in Go, it will
+    // fail if there's one in the string
+	s, err := strconv.Unquote(string(c.text))
+    return &stringNode{value: fString(s)}, err
+}
+
+EscapedChar = [\x00-\x1f"\\]
+
+EscapeSequence = SingleCharEscape / UnicodeEscape
+
+SingleCharEscape = ["\\/bfnrt]
+
+UnicodeEscape = 'u' HexDigit HexDigit HexDigit HexDigit
 
 // Operators
 
