@@ -32,7 +32,7 @@ func main() {
 	defineFlags(homeDir)
 	flag.Parse()
 
-	absSitePath, err := feta.InitSite(feta.Flags.SitePath)
+	feta.Flags.SitePath, err = feta.InitSite(feta.Flags.SitePath)
 	if err != nil {
 		feta.Fatal(err)
 	}
@@ -42,8 +42,8 @@ func main() {
 		feta.Fatal(err)
 	}
 
-	if !strings.HasPrefix(wd, absSitePath) {
-		feta.Fatal("Invocation dir must be under site path:" + absSitePath)
+	if !strings.HasPrefix(wd, feta.Flags.SitePath) {
+		feta.Fatal("Invocation dir must be under site path:" + feta.Flags.SitePath)
 	}
 
 	switch flag.Arg(0) {

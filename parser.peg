@@ -41,7 +41,41 @@ Query = ops_:Operator* tail:Tail? EOF {
 
 // Expression nodes
 
-Expression = first:Level_A rest_:(Comparison Level_A)* {
+Expression = first:Level_A rest_:(Or Level_A)* {
+	left := first.(exprNode)
+	rest := toList(rest_)
+	for _, comp_ := range rest {
+		comp := toList(comp_)
+		node := comp[0].(*orNode)
+		node.left = left
+		node.right = comp[1].(exprNode)
+		left = node 
+	}
+	return left, nil
+}
+
+Or = "||" {
+	return &orNode{}, nil
+}
+
+Level_A = first:Level_B rest_:(And Level_B)* {
+	left := first.(exprNode)
+	rest := toList(rest_)
+	for _, comp_ := range rest {
+		comp := toList(comp_)
+		node := comp[0].(*andNode)
+		node.left = left
+		node.right = comp[1].(exprNode)
+		left = node 
+	}
+	return left, nil
+}
+
+And = "&&" {
+	return &andNode{}, nil
+}
+
+Level_B = first:Level_C rest_:(Comparison Level_C)* {
 	left := first.(exprNode)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
@@ -54,11 +88,12 @@ Expression = first:Level_A rest_:(Comparison Level_A)* {
 	return left, nil
 }
 
-Comparison = ("==" / "<=" / ">=" / "<" / ">") {
+Comparison = ("==" / "!=" / "<=" / ">=" / "<" / ">") {
 	switch string(c.text) {
 	case "==":
-		Log("Parser: Egual comparison")
 		return &compNode{op: EQ}, nil
+	case "!=":
+		return &compNode{op: NEQ}, nil
 	case "<=":
 		return &compNode{op: LEEQ}, nil
 	case ">=":
@@ -69,7 +104,7 @@ Comparison = ("==" / "<=" / ">=" / "<" / ">") {
 	return &compNode{op: GR}, nil
 }
 
-Level_A = first:Level_B rest_:(Additive Level_B)* {
+Level_C = first:Level_D rest_:(Additive Level_D)* {
 	left := first.(exprNode)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
@@ -86,7 +121,7 @@ Additive = ('+' / '-') {
 	return &addNode{op: c.text[0]}, nil
 }
 
-Level_B = first:Level_C rest_:(Multiplicative Level_C)* {
+Level_D = first:Level_E rest_:(Multiplicative Level_E)* {
 	left := first.(exprNode)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
@@ -103,7 +138,7 @@ Multiplicative = ('*' / '/') {
 	return &multNode{op: c.text[0]}, nil
 }
 
-Level_C = Number / String / Resolver / '(' expr:Expression ')' {
+Level_E = Bool / Number / String / Resolver / '(' expr:Expression ')' {
 	return expr, nil
 }
 
@@ -115,8 +150,14 @@ Resolver = first:Key '.' next:Resolver {
 	return &keyNode{key: single.(string)}, nil
 }
 
-Key = [\pL]+ {
+Key = [\pL_]+ {
 	return string(c.text), nil
+}
+
+Bool = "true"i {
+	return fBool(true), nil
+}/ "false"i {
+	return fBool(false), nil
 }
 
 Number = '-'? Integer ( '.' DecimalDigit+ )? Exponent? {

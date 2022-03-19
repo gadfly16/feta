@@ -7,11 +7,24 @@ import (
 )
 
 type fType interface {
+	boolVal() fBool
 }
 
 type fBool bool
 
+func (value fBool) boolVal() fBool {
+	return value
+}
+
+func (value fBool) eval(ctx *context) (fType, error) {
+	return value, nil
+}
+
 type fNumber float64
+
+func (value fNumber) boolVal() fBool {
+	return value != 0
+}
 
 func (value fNumber) eval(ctx *context) (fType, error) {
 	return value, nil
@@ -19,11 +32,20 @@ func (value fNumber) eval(ctx *context) (fType, error) {
 
 type fString string
 
+func (value fString) boolVal() fBool {
+	return value != ""
+}
+
 func (value fString) eval(ctx *context) (fType, error) {
 	return value, nil
 }
 
 type fDict map[string]fType
+
+func (value fDict) boolVal() fBool {
+	return len(value) != 0
+}
+
 type fList []fType
 
 type fError struct {

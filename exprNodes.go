@@ -34,6 +34,7 @@ type compNode struct {
 
 const (
 	EQ = iota
+	NEQ
 	LEEQ
 	GREQ
 	LE
@@ -50,6 +51,18 @@ func (node *compNode) eval(ctx *context) (fType, error) {
 		return nil, err
 	}
 	switch l := left.(type) {
+	case fBool:
+		r, same := right.(fBool)
+		if !same {
+			return nil, errors.New("Booleans can only be compared to booleans. Yet..")
+		}
+		switch node.op {
+		case EQ:
+			return fBool(l == r), nil
+		case NEQ:
+			return fBool(l != r), nil
+		}
+		return nil, errors.New("Booleans are not orderable.")
 	case fNumber:
 		r, same := right.(fNumber)
 		if !same {
@@ -58,6 +71,8 @@ func (node *compNode) eval(ctx *context) (fType, error) {
 		switch node.op {
 		case EQ:
 			return fBool(l == r), nil
+		case NEQ:
+			return fBool(l != r), nil
 		case LEEQ:
 			return fBool(l <= r), nil
 		case GREQ:
@@ -75,6 +90,8 @@ func (node *compNode) eval(ctx *context) (fType, error) {
 		switch node.op {
 		case EQ:
 			return fBool(l == r), nil
+		case NEQ:
+			return fBool(l != r), nil
 		case LEEQ:
 			return fBool(l <= r), nil
 		case GREQ:
@@ -153,4 +170,38 @@ func (node *multNode) eval(ctx *context) (fType, error) {
 		return l / r, nil
 	}
 	return nil, errors.New("Only numbers can be multiplied.")
+}
+
+type andNode struct {
+	left  exprNode
+	right exprNode
+}
+
+func (node *andNode) eval(ctx *context) (fType, error) {
+	left, err := node.left.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+	right, err := node.right.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return left.boolVal() && right.boolVal(), nil
+}
+
+type orNode struct {
+	left  exprNode
+	right exprNode
+}
+
+func (node *orNode) eval(ctx *context) (fType, error) {
+	left, err := node.left.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+	right, err := node.right.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return left.boolVal() || right.boolVal(), nil
 }

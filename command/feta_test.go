@@ -17,6 +17,10 @@ type testCase struct {
 }
 
 func initTest(t *testing.T) {
+	err := os.RemoveAll("/tmp/feta_test_tree")
+	if err != nil {
+		t.Fatalf("Couldn't remove test dir: %s", err)
+	}
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Couldn't get working dir: %s", err)
@@ -28,13 +32,6 @@ func initTest(t *testing.T) {
 	err = os.Chdir("/tmp/feta_test_tree")
 	if err != nil {
 		t.Fatalf("Couldn't cd to test dir: %s", err)
-	}
-}
-
-func teardownTest(t *testing.T) {
-	err := os.RemoveAll("/tmp/feta_test_tree")
-	if err != nil {
-		t.Fatalf("Couldn't remove test dir: %s", err)
 	}
 }
 
@@ -60,9 +57,29 @@ func TestSelectors(t *testing.T) {
 			want:    `[{"Obj":"/dir_a/"},{"Obj":"/file_a"}]`,
 		},
 		{
+			name:    "All meta",
+			command: "get @",
+			want:    `[{"Obj":"/","Result":{"data":{"subdata_a":12,"subdata_b":"thing"}}}]`,
+		},
+		{
+			name:    "All meta from file below",
+			command: "get dir_a/file_b@",
+			want:    `[{"Obj":"/dir_a/file_b","Result":{"User":"Bob"}}]`,
+		},
+		{
 			name:    "Invalid relative reference",
 			command: "get ..",
 			want:    `[{"Error":"Invalid relative reference from /"}]`,
+		},
+		{
+			name:    "Precedence order",
+			command: "get @1+2*3*(4+5)-data.subdata_a-1==42&&data.subdata_b==\"thing\"",
+			want:    `[{"Obj":"/","Result":true}]`,
+		},
+		{
+			name:    "Relative site path",
+			command: "-S /tmp/feta_test_tree/../feta_test_tree get file_a@",
+			want:    `[{"Obj":"/file_a","Result":{"User":"Mate"}}]`,
 		},
 	}
 	for _, tc := range tests {
@@ -75,5 +92,4 @@ func TestSelectors(t *testing.T) {
 			}
 		})
 	}
-	teardownTest(t)
 }

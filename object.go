@@ -33,9 +33,6 @@ func newObject(parent *object, dirEntry os.DirEntry) (o *object) {
 }
 
 func (o *object) sysPath() string {
-	if o == site {
-		return Flags.SitePath
-	}
 	path := ""
 	if o.dirEntry.IsDir() {
 		path = "/"
