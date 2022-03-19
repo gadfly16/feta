@@ -79,7 +79,17 @@ func TestSelectors(t *testing.T) {
 		{
 			name:    "Relative site path",
 			command: "-S /tmp/feta_test_tree/../feta_test_tree get file_a@",
-			want:    `[{"Obj":"/file_a","Result":{"User":"Mate"}}]`,
+			want:    `[{"Obj":"/file_a","Result":{"User":"Alice"}}]`,
+		},
+		{
+			name:    "Recurse from root",
+			command: "get /**/file*@User",
+			want:    `[{"Obj":"/dir_a/file_b","Result":"Bob"},{"Obj":"/file_a","Result":"Alice"}]`,
+		},
+		{
+			name:    "Relative",
+			command: "get dir_a/../file_a",
+			want:    `[{"Obj":"/file_a"}]`,
 		},
 	}
 	for _, tc := range tests {

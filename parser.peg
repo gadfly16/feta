@@ -15,26 +15,32 @@ func toList(v interface{}) []interface{} {
 }
 }
 
-Query = ops_:Operator* tail:Tail? EOF {
-	ops := toList(ops_)
-	length := len(ops)
-	var last operator
+Query = sels_:Selector* tail:Tail? EOF {
+	sels := toList(sels_)
+	length := len(sels)
+	var last selector
 	if tail != nil {
-		last = tail.(opProducer).opProduce(nil)
+		last = tail.(selector)
 	}
 	if length == 0 {
-		return (&relativeOp{count:1}).opProduce(last), nil
+		return (&relSel{count: 1, next: last}), nil
 	}
 	for i := length - 1; i >= 0; i-- {
-		last = ops[i].(opProducer).opProduce(last)
+		sel := sels[i].(selector)
+		sel.setNext(last)
+		last = sel
 	}
-	switch ops[0].(type) {
-		case *dirOp:
+	switch sels[0].(type) {
+		case *dirSel, *recurseSel:
 			Log("Parser: added root op")
-			last = (&rootOp{}).opProduce(last)
-		case *patternOp:
+			sel := &rootSel{}
+			sel.setNext(last)
+			last = sel
+		case *patternSel:
 			Log("Parser: added dir op")
-			last = (&dirOp{}).opProduce(last)
+			sel := &dirSel{}
+			sel.setNext(last)
+			last = sel
 	}
 	return last, nil
 }
@@ -156,7 +162,7 @@ Key = [\pL_]+ {
 
 Bool = "true"i {
 	return fBool(true), nil
-}/ "false"i {
+} / "false"i {
 	return fBool(false), nil
 }
 
@@ -186,31 +192,31 @@ SingleCharEscape = ["\\/bfnrt]
 
 UnicodeEscape = 'u' HexDigit HexDigit HexDigit HexDigit
 
-// Operators
+// Selectors
 
-Operator = Recurse / Relative / Dir / Pattern
+Selector = Recurse / Relative / Dir / Pattern
 
 Tail = '@' expr:Expression {
-	Log("Parser: in tail operator")
-	return &tailOp{expr: expr.(exprNode)}, nil
+	Log("Parser: in tail")
+	return &tailSel{expr: expr.(exprNode)}, nil
 } / '@' {
-	return &tailOp{}, nil
+	return &tailSel{}, nil
 }
 
 Dir = '/' {
 	Log("Parser: in 'dir'")
-	return &dirOp{}, nil
+	return &dirSel{}, nil
 }
 
 Relative = '/'? rel_:'.'+ &OpStop {
 	Log("Parser: in 'relative'")
 	rel := toList(rel_)
-	return &relativeOp{count: len(rel)}, nil
+	return &relSel{count: len(rel)}, nil
 }
 
 Recurse = '/'? "**/" {
 	Log("Parser: in 'recurse'")
-	return &recurseOp{}, nil
+	return &recurseSel{}, nil
 }
 
 Pattern = [^/@]+ {
@@ -218,7 +224,7 @@ Pattern = [^/@]+ {
 	p := regexp.QuoteMeta(string(c.text))
 	p = strings.ReplaceAll(p, "\\*", ".*")
 	p = "^" + p + "$"
-	op := &patternOp{rex: regexp.MustCompile(p)}
+	op := &patternSel{rex: regexp.MustCompile(p)}
 	return op, nil
 }
 
