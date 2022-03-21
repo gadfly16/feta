@@ -1,6 +1,7 @@
 {
   "data": {
     "subdata_a": 12,
-    "subdata_b": "thing"
+    "subdata_b": "thing",
+    "subdata_c": [1,2,3]
   }
 }

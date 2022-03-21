@@ -137,7 +137,7 @@ func (sel *recurseSel) get(ctx *context) []*result {
 }
 
 type tailSel struct {
-	expr exprNode
+	expr expression
 }
 
 func (sel *tailSel) setNext(next selector) {

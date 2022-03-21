@@ -48,6 +48,10 @@ func (value fDict) boolVal() fBool {
 
 type fList []fType
 
+func (value fList) boolVal() fBool {
+	return len(value) != 0
+}
+
 type fError struct {
 	msg string
 }
@@ -89,7 +93,7 @@ func typeConvert(i interface{}) (fType, error) {
 		}
 		return m, nil
 	case []interface{}:
-		l := make(fList, 1)
+		l := make(fList, 0)
 		for _, v := range t {
 			fv, err := typeConvert(v)
 			if err != nil {
@@ -97,6 +101,7 @@ func typeConvert(i interface{}) (fType, error) {
 			}
 			l = append(l, fv)
 		}
+		return l, nil
 	case float64:
 		return fNumber(t), nil
 	case string:

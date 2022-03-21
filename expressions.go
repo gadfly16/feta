@@ -2,19 +2,93 @@ package feta
 
 import "errors"
 
-type exprNode interface {
+type expression interface {
 	eval(*context) (fType, error)
 }
 
-type keyNode struct {
-	key  string
-	next exprNode
+type resolver interface {
+	setNext(expression)
 }
 
-func (node *keyNode) eval(ctx *context) (fType, error) {
+type valueRes struct {
+	expr expression
+	next expression
+}
+
+func (node *valueRes) setNext(next expression) {
+	node.next = next
+}
+
+func (node *valueRes) eval(ctx *context) (fType, error) {
+	value, err := node.expr.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// if node.next != nil {
+	return node.next.eval(&context{obj: ctx.obj, meta: value})
+	// // }
+	// return value, nil
+}
+
+type indexRes struct {
+	expr expression
+	next expression
+}
+
+func (node *indexRes) setNext(next expression) {
+	node.next = next
+}
+
+func (node *indexRes) eval(ctx *context) (fType, error) {
+	index, err := node.expr.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch v := ctx.meta.(type) {
+	case fDict:
+		i, isStr := index.(fString)
+		if !isStr {
+			return nil, errors.New("Dicts can only be indexed with strings.")
+		}
+		res, exists := v[string(i)]
+		if exists {
+			if node.next == nil {
+				return res, nil
+			}
+			return node.next.eval(&context{obj: ctx.obj, meta: res})
+		}
+		return nil, nil
+	case fList:
+		i, isNum := index.(fNumber)
+		if !isNum {
+			return nil, errors.New("Lists can only be indexed with numbers.")
+		}
+		ii := int(i)
+		if ii > len(v)-1 || ii < 0 {
+			return nil, errors.New("Index out of range.")
+		}
+		res := v[ii]
+		if node.next == nil {
+			return res, nil
+		}
+		return node.next.eval(&context{obj: ctx.obj, meta: res})
+	}
+	return nil, errors.New("Only lists and dicts can be indexed.")
+}
+
+type attribRes struct {
+	identifier string
+	next       expression
+}
+
+func (node *attribRes) setNext(next expression) {
+	node.next = next
+}
+
+func (node *attribRes) eval(ctx *context) (fType, error) {
 	switch t := ctx.meta.(type) {
 	case fDict:
-		res, exists := t[node.key]
+		res, exists := t[node.identifier]
 		if exists {
 			if node.next == nil {
 				return res, nil
@@ -28,8 +102,8 @@ func (node *keyNode) eval(ctx *context) (fType, error) {
 
 type compNode struct {
 	op    byte
-	left  exprNode
-	right exprNode
+	left  expression
+	right expression
 }
 
 const (
@@ -107,8 +181,8 @@ func (node *compNode) eval(ctx *context) (fType, error) {
 
 type addNode struct {
 	op    byte
-	left  exprNode
-	right exprNode
+	left  expression
+	right expression
 }
 
 func (node *addNode) eval(ctx *context) (fType, error) {
@@ -145,8 +219,8 @@ func (node *addNode) eval(ctx *context) (fType, error) {
 
 type multNode struct {
 	op    byte
-	left  exprNode
-	right exprNode
+	left  expression
+	right expression
 }
 
 func (node *multNode) eval(ctx *context) (fType, error) {
@@ -173,8 +247,8 @@ func (node *multNode) eval(ctx *context) (fType, error) {
 }
 
 type andNode struct {
-	left  exprNode
-	right exprNode
+	left  expression
+	right expression
 }
 
 func (node *andNode) eval(ctx *context) (fType, error) {
@@ -190,8 +264,8 @@ func (node *andNode) eval(ctx *context) (fType, error) {
 }
 
 type orNode struct {
-	left  exprNode
-	right exprNode
+	left  expression
+	right expression
 }
 
 func (node *orNode) eval(ctx *context) (fType, error) {

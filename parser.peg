@@ -25,7 +25,7 @@ Query = sels_:Selector* tail:Tail? EOF {
 	if length == 0 {
 		return (&relSel{count: 1, next: last}), nil
 	}
-	for i := length - 1; i >= 0; i-- {
+	for i := length-1; i >= 0; i-- {
 		sel := sels[i].(selector)
 		sel.setNext(last)
 		last = sel
@@ -48,13 +48,13 @@ Query = sels_:Selector* tail:Tail? EOF {
 // Expression nodes
 
 Expression = first:Level_A rest_:(Or Level_A)* {
-	left := first.(exprNode)
+	left := first.(expression)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*orNode)
 		node.left = left
-		node.right = comp[1].(exprNode)
+		node.right = comp[1].(expression)
 		left = node 
 	}
 	return left, nil
@@ -65,13 +65,13 @@ Or = "||" {
 }
 
 Level_A = first:Level_B rest_:(And Level_B)* {
-	left := first.(exprNode)
+	left := first.(expression)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*andNode)
 		node.left = left
-		node.right = comp[1].(exprNode)
+		node.right = comp[1].(expression)
 		left = node 
 	}
 	return left, nil
@@ -82,13 +82,13 @@ And = "&&" {
 }
 
 Level_B = first:Level_C rest_:(Comparison Level_C)* {
-	left := first.(exprNode)
+	left := first.(expression)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*compNode)
 		node.left = left
-		node.right = comp[1].(exprNode)
+		node.right = comp[1].(expression)
 		left = node 
 	}
 	return left, nil
@@ -111,13 +111,13 @@ Comparison = ("==" / "!=" / "<=" / ">=" / "<" / ">") {
 }
 
 Level_C = first:Level_D rest_:(Additive Level_D)* {
-	left := first.(exprNode)
+	left := first.(expression)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*addNode)
 		node.left = left
-		node.right = comp[1].(exprNode)
+		node.right = comp[1].(expression)
 		left = node 
 	}
 	return left, nil
@@ -127,14 +127,14 @@ Additive = ('+' / '-') {
 	return &addNode{op: c.text[0]}, nil
 }
 
-Level_D = first:Level_E rest_:(Multiplicative Level_E)* {
-	left := first.(exprNode)
+Level_D = first:Resolution rest_:(Multiplicative Resolution)* {
+	left := first.(expression)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*multNode)
 		node.left = left
-		node.right = comp[1].(exprNode)
+		node.right = comp[1].(expression)
 		left = node 
 	}
 	return left, nil
@@ -144,20 +144,44 @@ Multiplicative = ('*' / '/') {
 	return &multNode{op: c.text[0]}, nil
 }
 
-Level_E = Bool / Number / String / Resolver / '(' expr:Expression ')' {
+Resolution = first:Value rest_:Resolver* {
+	rest := toList(rest_)
+	if len(rest) == 0 {
+		return first, nil
+	}
+	var last expression
+	for i:=len(rest)-1; i>=0; i-- {
+		node := rest[i]
+		node.(resolver).setNext(last)
+		last = node.(expression)
+	}
+	switch f := first.(type) {
+	case *attribRes:
+		f.setNext(last)
+		return f, nil
+	default:
+		first = &valueRes{expr: first.(expression)}
+	} 
+	first.(resolver).setNext(last)
+	return first.(expression), nil
+}
+
+Value =  Bool / Number / String / Identifier / '(' expr:Expression ')' {
 	return expr, nil
 }
 
-Resolver = first:Key '.' next:Resolver {
-	Log("Parser: in compound resolver")
-	return &keyNode{key: first.(string), next: next.(exprNode)}, nil
-} / single:Key {
-	Log("Parser: in single resolver")
-	return &keyNode{key: single.(string)}, nil
+Resolver = Attribute / Index
+
+Index = '[' expr:Expression ']' {
+	return &indexRes{expr: expr.(expression)}, nil
 }
 
-Key = [\pL_]+ {
-	return string(c.text), nil
+Attribute = '.' identifier:Identifier {
+	return identifier, nil
+}
+
+Identifier = [\pL_]+ {
+	return &attribRes{identifier: string(c.text)}, nil
 }
 
 Bool = "true"i {
@@ -198,7 +222,7 @@ Selector = Recurse / Relative / Dir / Pattern
 
 Tail = '@' expr:Expression {
 	Log("Parser: in tail")
-	return &tailSel{expr: expr.(exprNode)}, nil
+	return &tailSel{expr: expr.(expression)}, nil
 } / '@' {
 	return &tailSel{}, nil
 }

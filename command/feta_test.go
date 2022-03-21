@@ -59,7 +59,7 @@ func TestSelectors(t *testing.T) {
 		{
 			name:    "All meta",
 			command: "get @",
-			want:    `[{"Obj":"/","Result":{"data":{"subdata_a":12,"subdata_b":"thing"}}}]`,
+			want:    `[{"Obj":"/","Result":{"data":{"subdata_a":12,"subdata_b":"thing","subdata_c":[1,2,3]}}}]`,
 		},
 		{
 			name:    "All meta from file below",
