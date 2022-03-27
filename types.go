@@ -40,16 +40,38 @@ func (value fString) eval(ctx *context) (fType, error) {
 	return value, nil
 }
 
-type fDict map[string]fType
+type fDict map[string]expression
 
 func (value fDict) boolVal() fBool {
 	return len(value) != 0
 }
 
-type fList []fType
+func (value fDict) eval(ctx *context) (fType, error) {
+	for k, elm := range value {
+		res, err := elm.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		value[k] = res.(expression)
+	}
+	return value, nil
+}
+
+type fList []expression
 
 func (value fList) boolVal() fBool {
 	return len(value) != 0
+}
+
+func (value fList) eval(ctx *context) (fType, error) {
+	for i, elm := range value {
+		res, err := elm.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		value[i] = res.(expression)
+	}
+	return value, nil
 }
 
 type fError struct {
@@ -89,7 +111,7 @@ func typeConvert(i interface{}) (fType, error) {
 			if err != nil {
 				return nil, err
 			}
-			m[k] = fv
+			m[k] = fv.(expression)
 		}
 		return m, nil
 	case []interface{}:
@@ -99,7 +121,7 @@ func typeConvert(i interface{}) (fType, error) {
 			if err != nil {
 				return nil, err
 			}
-			l = append(l, fv)
+			l = append(l, fv.(expression))
 		}
 		return l, nil
 	case float64:

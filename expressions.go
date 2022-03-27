@@ -7,15 +7,16 @@ type expression interface {
 }
 
 type resolver interface {
-	setNext(expression)
+	setNext(resolver)
+	resolve(*context, fType) (fType, error)
 }
 
 type valueRes struct {
 	expr expression
-	next expression
+	next resolver
 }
 
-func (node *valueRes) setNext(next expression) {
+func (node *valueRes) setNext(next resolver) {
 	node.next = next
 }
 
@@ -24,27 +25,28 @@ func (node *valueRes) eval(ctx *context) (fType, error) {
 	if err != nil {
 		return nil, err
 	}
-	// if node.next != nil {
-	return node.next.eval(&context{obj: ctx.obj, meta: value})
-	// // }
-	// return value, nil
+	return node.next.resolve(ctx, value)
+}
+
+func (node *valueRes) resolve(ctx *context, ns fType) (fType, error) {
+	return nil, nil
 }
 
 type indexRes struct {
 	expr expression
-	next expression
+	next resolver
 }
 
-func (node *indexRes) setNext(next expression) {
+func (node *indexRes) setNext(next resolver) {
 	node.next = next
 }
 
-func (node *indexRes) eval(ctx *context) (fType, error) {
+func (node *indexRes) resolve(ctx *context, ns fType) (fType, error) {
 	index, err := node.expr.eval(ctx)
 	if err != nil {
 		return nil, err
 	}
-	switch v := ctx.meta.(type) {
+	switch v := ns.(type) {
 	case fDict:
 		i, isStr := index.(fString)
 		if !isStr {
@@ -53,9 +55,13 @@ func (node *indexRes) eval(ctx *context) (fType, error) {
 		res, exists := v[string(i)]
 		if exists {
 			if node.next == nil {
-				return res, nil
+				return res.eval(ctx)
 			}
-			return node.next.eval(&context{obj: ctx.obj, meta: res})
+			ns, err := res.eval(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return node.next.resolve(ctx, ns)
 		}
 		return nil, nil
 	case fList:
@@ -69,31 +75,43 @@ func (node *indexRes) eval(ctx *context) (fType, error) {
 		}
 		res := v[ii]
 		if node.next == nil {
-			return res, nil
+			return res.eval(ctx)
 		}
-		return node.next.eval(&context{obj: ctx.obj, meta: res})
+		ns, err := res.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return node.next.resolve(ctx, ns)
 	}
 	return nil, errors.New("Only lists and dicts can be indexed.")
 }
 
 type attribRes struct {
 	identifier string
-	next       expression
+	next       resolver
 }
 
-func (node *attribRes) setNext(next expression) {
+func (node *attribRes) setNext(next resolver) {
 	node.next = next
 }
 
 func (node *attribRes) eval(ctx *context) (fType, error) {
-	switch t := ctx.meta.(type) {
+	return node.resolve(ctx, ctx.meta)
+}
+
+func (node *attribRes) resolve(ctx *context, ns fType) (fType, error) {
+	switch t := ns.(type) {
 	case fDict:
 		res, exists := t[node.identifier]
 		if exists {
 			if node.next == nil {
-				return res, nil
+				return res.eval(ctx)
 			}
-			return node.next.eval(&context{obj: ctx.obj, meta: res})
+			ns, err := res.eval(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return node.next.resolve(ctx, ns)
 		}
 		return nil, nil
 	}

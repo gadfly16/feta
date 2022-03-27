@@ -149,11 +149,11 @@ Resolution = first:Value rest_:Resolver* {
 	if len(rest) == 0 {
 		return first, nil
 	}
-	var last expression
+	var last resolver
 	for i:=len(rest)-1; i>=0; i-- {
-		node := rest[i]
-		node.(resolver).setNext(last)
-		last = node.(expression)
+		node := rest[i].(resolver)
+		node.setNext(last)
+		last = node
 	}
 	switch f := first.(type) {
 	case *attribRes:
@@ -166,10 +166,6 @@ Resolution = first:Value rest_:Resolver* {
 	return first.(expression), nil
 }
 
-Value =  Bool / Number / String / Identifier / '(' expr:Expression ')' {
-	return expr, nil
-}
-
 Resolver = Attribute / Index
 
 Index = '[' expr:Expression ']' {
@@ -178,6 +174,36 @@ Index = '[' expr:Expression ']' {
 
 Attribute = '.' identifier:Identifier {
 	return identifier, nil
+}
+
+Value =  Bool / Number / String / Identifier / List / Dict / '(' expr:Expression ')' {
+	return expr, nil
+}
+
+List = '[' first:Expression rest_:ListElements* ']' {
+	rest := toList(rest_)
+	list := make([]expression, len(rest)+1)
+	list[0] = first.(expression)
+	for i, elm := range rest {
+		list[i+1] = elm.(expression)
+	}
+	return fList(list), nil
+}
+
+ListElements = ',' expr:Expression {
+	return expr, nil
+}
+
+Dict = '{' first_:(Identifier ':' Expression) rest_:(',' Identifier ':' Expression)* '}' {
+	first := toList(first_)
+	rest := toList(rest_)
+	dict := make(map[string]expression)
+	dict[first[0].(*attribRes).identifier] = first[2].(expression)
+	for _, kvp_ := range rest {
+		kvp := toList(kvp_)
+		dict[kvp[1].(*attribRes).identifier] = kvp[3].(expression)
+	}
+	return fDict(dict), nil
 }
 
 Identifier = [\pL_]+ {
@@ -215,6 +241,8 @@ EscapeSequence = SingleCharEscape / UnicodeEscape
 SingleCharEscape = ["\\/bfnrt]
 
 UnicodeEscape = 'u' HexDigit HexDigit HexDigit HexDigit
+
+HexDigit = [0-9a-f]i
 
 // Selectors
 

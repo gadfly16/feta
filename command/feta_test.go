@@ -91,6 +91,31 @@ func TestSelectors(t *testing.T) {
 			command: "get dir_a/../file_a",
 			want:    `[{"Obj":"/file_a"}]`,
 		},
+		{
+			name:    "List literal",
+			command: "get @[1,2,3*2]",
+			want:    `[{"Obj":"/","Result":[1,2,6]}]`,
+		},
+		{
+			name:    "List literal indexing",
+			command: `get @["first","second","third"][data.subdata_c[1]]`,
+			want:    `[{"Obj":"/","Result":"third"}]`,
+		},
+		{
+			name:    "Dict literal",
+			command: `get @{first:1,second:2+2,third:"valami"}`,
+			want:    `[{"Obj":"/","Result":{"first":1,"second":4,"third":"valami"}}]`,
+		},
+		{
+			name:    "Dict literal attribute",
+			command: `get @{first:1,second:2+2,third:"valami"}.third`,
+			want:    `[{"Obj":"/","Result":"valami"}]`,
+		},
+		{
+			name:    "Dict literal indexing",
+			command: `get @{first:1,second:2+2,third:"valami"}["third"]`,
+			want:    `[{"Obj":"/","Result":"valami"}]`,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
