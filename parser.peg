@@ -31,7 +31,7 @@ Query = sels_:Selector* tail:Tail? EOF {
 		last = sel
 	}
 	switch sels[0].(type) {
-		case *dirSel, *recurseSel:
+		case *dirSel:
 			Log("Parser: added root op")
 			sel := &rootSel{}
 			sel.setNext(last)
@@ -246,7 +246,7 @@ HexDigit = [0-9a-f]i
 
 // Selectors
 
-Selector = Recurse / Relative / Dir / Pattern
+Selector = Recurse / Relative / Dir / Pattern / Filter
 
 Tail = '@' expr:Expression {
 	Log("Parser: in tail")
@@ -260,18 +260,22 @@ Dir = '/' {
 	return &dirSel{}, nil
 }
 
-Relative = '/'? rel_:'.'+ &OpStop {
+Filter = "(?" expr:Expression ')' {
+	return &filterSel{expr: expr.(expression)}, nil
+}
+
+Relative = rel_:'.'+ &OpStop {
 	Log("Parser: in 'relative'")
 	rel := toList(rel_)
 	return &relSel{count: len(rel)}, nil
 }
 
-Recurse = '/'? "**/" {
+Recurse = "**/" {
 	Log("Parser: in 'recurse'")
 	return &recurseSel{}, nil
 }
 
-Pattern = [^/@]+ {
+Pattern = [^/@(]+ {
 	Log("Parser: in 'pattern'")
 	p := regexp.QuoteMeta(string(c.text))
 	p = strings.ReplaceAll(p, "\\*", ".*")

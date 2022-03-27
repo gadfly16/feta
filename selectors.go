@@ -33,6 +33,10 @@ func (sel *dirSel) setNext(next selector) {
 func (sel *dirSel) get(ctx *context) []*result {
 	if ctx.obj.dirEntry.IsDir() {
 		if sel.next != nil {
+			switch n := sel.next.(type) {
+			case *relSel, *recurseSel:
+				return n.get(ctx)
+			}
 			res := []*result{}
 			chs, err := ctx.obj.getChildren()
 			if err != nil {
@@ -163,4 +167,36 @@ func (sel *tailSel) get(ctx *context) []*result {
 	}
 	res[0].Result = meta
 	return res
+}
+
+type filterSel struct {
+	expr expression
+	next selector
+}
+
+func (sel *filterSel) setNext(next selector) {
+	sel.next = next
+}
+
+func (sel *filterSel) get(ctx *context) []*result {
+	res := []*result{{
+		Obj: ctx.obj,
+	}}
+	ns, err := ctx.obj.getMeta()
+	if err != nil {
+		res[0].Error = fError{err.Error()}
+		return res
+	}
+	value, err := sel.expr.eval(&context{obj: ctx.obj, meta: ns})
+	if err != nil {
+		res[0].Error = fError{err.Error()}
+		return res
+	}
+	if value != nil && value.boolVal() {
+		if sel.next != nil {
+			return sel.next.get(ctx)
+		}
+		return res
+	}
+	return []*result{}
 }

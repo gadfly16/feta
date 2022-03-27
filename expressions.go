@@ -143,10 +143,15 @@ func (node *compNode) eval(ctx *context) (fType, error) {
 		return nil, err
 	}
 	switch l := left.(type) {
+	case nil:
+		if right == nil {
+			return fBool(true), nil
+		}
+		return fBool(false), nil
 	case fBool:
 		r, same := right.(fBool)
 		if !same {
-			return nil, errors.New("Booleans can only be compared to booleans. Yet..")
+			return fBool(false), nil
 		}
 		switch node.op {
 		case EQ:
@@ -158,7 +163,7 @@ func (node *compNode) eval(ctx *context) (fType, error) {
 	case fNumber:
 		r, same := right.(fNumber)
 		if !same {
-			return nil, errors.New("Numbers can only be compared to numbers.")
+			return fBool(false), nil
 		}
 		switch node.op {
 		case EQ:
@@ -177,7 +182,7 @@ func (node *compNode) eval(ctx *context) (fType, error) {
 	case fString:
 		r, same := right.(fString)
 		if !same {
-			return nil, errors.New("Strings can only be compared to strings.")
+			return fBool(false), nil
 		}
 		switch node.op {
 		case EQ:

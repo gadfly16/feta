@@ -116,6 +116,16 @@ func TestSelectors(t *testing.T) {
 			command: `get @{first:1,second:2+2,third:"valami"}["third"]`,
 			want:    `[{"Obj":"/","Result":"valami"}]`,
 		},
+		{
+			name:    "Filter recursive by key exists",
+			command: `get **/(?User)`,
+			want:    `[{"Obj":"/dir_a/file_b"},{"Obj":"/file_a"}]`,
+		},
+		{
+			name:    "Filter recursive by key value",
+			command: `get **/(?User!="Bob")@User`,
+			want:    `[{"Obj":"/file_a","Result":"Alice"}]`,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
