@@ -157,6 +157,14 @@ func (sel *tailSel) get(ctx *context) []*result {
 		return res
 	}
 	if sel.expr == nil {
+		for k, v := range procedurals {
+			pr, err := v.eval(ctx)
+			if err != nil {
+				res[0].Error = fError{err.Error()}
+				return res
+			}
+			ns.(fDict)[k] = pr.(expression)
+		}
 		res[0].Result = ns
 		return res
 	}

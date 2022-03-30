@@ -156,6 +156,9 @@ func (o *object) getMeta() (fType, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't type-convert meta file '%s': %v", path, err)
 	}
+	for k, v := range procedurals {
+		meta.(fDict)[k] = v
+	}
 	o.meta = meta
 	return meta, nil
 }
