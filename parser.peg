@@ -30,12 +30,14 @@ Query = sels_:Selector* tail:Tail? EOF {
 		sel.setNext(last)
 		last = sel
 	}
-	switch sels[0].(type) {
+	switch first := sels[0].(type) {
 		case *dirSel:
 			Log("Parser: added root op")
-			sel := &rootSel{}
-			sel.setNext(last)
-			last = sel
+			if first.count == 1 {
+				sel := &rootSel{}
+				sel.setNext(last)
+				last = sel
+			}
 		case *patternSel:
 			Log("Parser: added dir op")
 			sel := &dirSel{}
@@ -255,9 +257,8 @@ Tail = '@' expr:Expression {
 	return &tailSel{}, nil
 }
 
-Dir = '/' {
-	Log("Parser: in 'dir'")
-	return &dirSel{}, nil
+Dir = dirs_:'/'+ {
+	return &dirSel{count: len(toList(dirs_))}, nil
 }
 
 Filter = "(?" expr:Expression ')' {
@@ -265,7 +266,6 @@ Filter = "(?" expr:Expression ')' {
 }
 
 Relative = rel_:'.'+ &OpStop {
-	Log("Parser: in 'relative'")
 	rel := toList(rel_)
 	return &relSel{count: len(rel)}, nil
 }

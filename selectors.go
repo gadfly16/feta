@@ -23,7 +23,8 @@ type selector interface {
 }
 
 type dirSel struct {
-	next selector
+	count int
+	next  selector
 }
 
 func (sel *dirSel) setNext(next selector) {
@@ -31,6 +32,19 @@ func (sel *dirSel) setNext(next selector) {
 }
 
 func (sel *dirSel) get(ctx *context) []*result {
+	for i := 1; i < sel.count; i++ {
+		if i > 1 {
+			ctx.obj = ctx.obj.parent
+		}
+		proj, err := ctx.obj.getProject()
+		if err != nil {
+			return []*result{{Obj: ctx.obj, Error: fError{err.Error()}}}
+		}
+		if proj == nil {
+			return []*result{{Obj: ctx.obj, Error: fError{"Couldn't find project for object."}}}
+		}
+		ctx.obj = proj
+	}
 	if ctx.obj.dirEntry.IsDir() {
 		if sel.next != nil {
 			switch n := sel.next.(type) {

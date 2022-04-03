@@ -16,10 +16,12 @@ var (
 )
 
 type object struct {
-	dirEntry os.DirEntry
-	parent   *object
-	children []*object
-	meta     fType
+	dirEntry  os.DirEntry
+	parent    *object
+	isProjSet bool
+	project   *object
+	children  []*object
+	meta      fType
 }
 
 func newObject(parent *object, dirEntry os.DirEntry) (o *object) {
@@ -161,4 +163,45 @@ func (o *object) getMeta() (fType, error) {
 	}
 	o.meta = meta
 	return meta, nil
+}
+
+func fileExists(path string) (bool, error) {
+	if _, err := os.Stat(path); err == nil {
+		return true, nil
+	} else if os.IsNotExist(err) {
+		return false, nil
+	} else {
+		return false, err
+	}
+}
+
+func (o *object) getProject() (*object, error) {
+	if o.isProjSet {
+		return o.project, nil
+	}
+	var proj *object
+	var err error
+	if o.dirEntry.IsDir() {
+		path := o.sysPath() + "/.feta/project"
+		if isProj, err := fileExists(path); err != nil {
+			return nil, err
+		} else if isProj {
+			proj = o
+		} else if o == site {
+			proj = nil
+		} else {
+			proj, err = o.parent.getProject()
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		proj, err = o.parent.getProject()
+		if err != nil {
+			return nil, err
+		}
+	}
+	o.project = proj
+	o.isProjSet = true
+	return proj, nil
 }
