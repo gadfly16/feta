@@ -14,7 +14,7 @@ func Get(query string, workDir string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't parse query '%s': %v", query, err)
 	}
-	res := ast.(selector).get(&context{obj: workDirObj})
+	res := ast.(selector).sel(&context{obj: workDirObj})
 	j, err := json.Marshal(res)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't marshal objects: %v", err)

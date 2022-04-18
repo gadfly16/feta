@@ -11,14 +11,8 @@ type context struct {
 	meta fType
 }
 
-type result struct {
-	Obj    *object `json:",omitempty"`
-	Result fType   `json:",omitempty"`
-	Error  error   `json:",omitempty"`
-}
-
 type selector interface {
-	get(*context) []*result
+	sel(*context) fList
 	setNext(selector)
 }
 
@@ -31,17 +25,17 @@ func (sel *dirSel) setNext(next selector) {
 	sel.next = next
 }
 
-func (sel *dirSel) get(ctx *context) []*result {
+func (sel *dirSel) sel(ctx *context) fList {
 	for i := 1; i < sel.count; i++ {
 		if i > 1 {
 			ctx.obj = ctx.obj.parent
 		}
 		proj, err := ctx.obj.getProject()
 		if err != nil {
-			return []*result{{Obj: ctx.obj, Error: fError{err.Error()}}}
+			return fList{fError{err.Error()}}
 		}
 		if proj == nil {
-			return []*result{{Obj: ctx.obj, Error: fError{"Couldn't find project for object."}}}
+			return fList{fError{"Couldn't find project for object: " + ctx.obj.fetaPath()}}
 		}
 		ctx.obj = proj
 	}
@@ -49,20 +43,20 @@ func (sel *dirSel) get(ctx *context) []*result {
 		if sel.next != nil {
 			switch n := sel.next.(type) {
 			case *relSel, *recurseSel:
-				return n.get(ctx)
+				return n.sel(ctx)
 			}
-			res := []*result{}
+			res := fList{}
 			chs, err := ctx.obj.getChildren()
 			if err != nil {
-				return []*result{{Obj: ctx.obj, Error: fError{err.Error()}}}
+				return fList{fError{err.Error() + " at " + ctx.obj.fetaPath()}}
 			}
 			for _, ch := range chs {
-				chRes := sel.next.get(&context{ch, ctx.meta})
+				chRes := sel.next.sel(&context{ch, ctx.meta})
 				res = append(res, chRes...)
 			}
 			return res
 		}
-		return []*result{{Obj: ctx.obj}}
+		return fList{ctx.obj}
 	}
 	return nil
 }
@@ -76,12 +70,12 @@ func (sel *patternSel) setNext(next selector) {
 	sel.next = next
 }
 
-func (sel *patternSel) get(ctx *context) []*result {
+func (sel *patternSel) sel(ctx *context) fList {
 	if sel.rex.Match([]byte(ctx.obj.dirEntry.Name())) {
 		if sel.next != nil {
-			return sel.next.get(ctx)
+			return sel.next.sel(ctx)
 		}
-		return []*result{{Obj: ctx.obj}}
+		return fList{ctx.obj}
 	}
 	return nil
 }
@@ -94,8 +88,8 @@ func (sel *rootSel) setNext(next selector) {
 	sel.next = next
 }
 
-func (sel *rootSel) get(_ *context) []*result {
-	return sel.next.get(&context{obj: site})
+func (sel *rootSel) sel(_ *context) fList {
+	return sel.next.sel(&context{obj: site})
 }
 
 type relSel struct {
@@ -107,18 +101,18 @@ func (sel *relSel) setNext(next selector) {
 	sel.next = next
 }
 
-func (sel *relSel) get(ctx *context) []*result {
+func (sel *relSel) sel(ctx *context) fList {
 	anch := ctx.obj
 	for i := 1; i < sel.count; i++ {
 		anch = anch.parent
 		if anch == nil {
-			return []*result{{Error: fError{"Invalid relative reference from " + ctx.obj.fetaPath()}}}
+			return fList{fError{"Invalid relative reference from " + ctx.obj.fetaPath()}}
 		}
 	}
 	if sel.next != nil {
-		return sel.next.get(&context{anch, ctx.meta})
+		return sel.next.sel(&context{anch, ctx.meta})
 	}
-	return []*result{{Obj: anch}}
+	return fList{anch}
 }
 
 type recurseSel struct {
@@ -129,18 +123,18 @@ func (sel *recurseSel) setNext(next selector) {
 	sel.next = next
 }
 
-func walk(ctx *context, next selector) []*result {
+func walk(ctx *context, next selector) fList {
 	chs, err := ctx.obj.getChildren()
 	if err != nil {
-		return []*result{{Obj: ctx.obj, Error: fError{err.Error()}}}
+		return fList{fError{err.Error() + " at " + ctx.obj.fetaPath()}}
 	}
-	res := []*result{}
+	res := fList{}
 	for _, ch := range chs {
 		if next != nil {
-			chRes := next.get(&context{obj: ch})
+			chRes := next.sel(&context{obj: ch})
 			res = append(res, chRes...)
 		} else {
-			res = append(res, &result{Obj: ch})
+			res = append(res, ch)
 		}
 		if ch.dirEntry.IsDir() {
 			chRes := walk(&context{obj: ch}, next)
@@ -150,7 +144,7 @@ func walk(ctx *context, next selector) []*result {
 	return res
 }
 
-func (sel *recurseSel) get(ctx *context) []*result {
+func (sel *recurseSel) sel(ctx *context) fList {
 	return walk(ctx, sel.next)
 }
 
@@ -161,34 +155,29 @@ type tailSel struct {
 func (sel *tailSel) setNext(next selector) {
 }
 
-func (sel *tailSel) get(ctx *context) []*result {
-	res := []*result{{
-		Obj: ctx.obj,
-	}}
+func (sel *tailSel) sel(ctx *context) fList {
 	ns, err := ctx.obj.getMeta()
 	if err != nil {
-		res[0].Error = fError{err.Error()}
-		return res
+		return fList{fError{err.Error() + " at " + ctx.obj.fetaPath()}}
 	}
+	res := fDict{"Obj": ctx.obj}
 	if sel.expr == nil {
 		for k, v := range procedurals {
-			pr, err := v.eval(ctx)
-			if err != nil {
-				res[0].Error = fError{err.Error()}
-				return res
+			pr := v.eval(ctx)
+			if fErr, ok := pr.(fError); ok {
+				return fList{fErr}
 			}
 			ns.(fDict)[k] = pr.(expression)
 		}
-		res[0].Result = ns
-		return res
+		res["Value"] = ns.(fDict)
+		return fList{res}
 	}
-	meta, err := sel.expr.eval(&context{obj: ctx.obj, meta: ns})
-	if err != nil {
-		res[0].Error = fError{err.Error()}
-		return res
+	meta := sel.expr.eval(&context{obj: ctx.obj, meta: ns})
+	if fErr, ok := meta.(fError); ok {
+		return fList{fErr}
 	}
-	res[0].Result = meta
-	return res
+	res["Value"] = meta.(expression)
+	return fList{res}
 }
 
 type filterSel struct {
@@ -200,25 +189,20 @@ func (sel *filterSel) setNext(next selector) {
 	sel.next = next
 }
 
-func (sel *filterSel) get(ctx *context) []*result {
-	res := []*result{{
-		Obj: ctx.obj,
-	}}
+func (sel *filterSel) get(ctx *context) fList {
 	ns, err := ctx.obj.getMeta()
 	if err != nil {
-		res[0].Error = fError{err.Error()}
-		return res
+		return fList{fError{err.Error() + " at " + ctx.obj.fetaPath()}}
 	}
-	value, err := sel.expr.eval(&context{obj: ctx.obj, meta: ns})
-	if err != nil {
-		res[0].Error = fError{err.Error()}
-		return res
+	value := sel.expr.eval(&context{obj: ctx.obj, meta: ns})
+	if fErr, ok := value.(fError); ok {
+		return fList{fErr}
 	}
 	if value != nil && value.boolVal() {
 		if sel.next != nil {
-			return sel.next.get(ctx)
+			return sel.next.sel(ctx)
 		}
-		return res
+		return fList{ctx.obj}
 	}
-	return []*result{}
+	return fList{}
 }

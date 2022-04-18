@@ -1,14 +1,12 @@
 package feta
 
-import "errors"
-
 type expression interface {
-	eval(*context) (fType, error)
+	eval(*context) fType
 }
 
 type resolver interface {
 	setNext(resolver)
-	resolve(*context, fType) (fType, error)
+	resolve(*context, fType) fType
 }
 
 type valueRes struct {
@@ -20,16 +18,16 @@ func (node *valueRes) setNext(next resolver) {
 	node.next = next
 }
 
-func (node *valueRes) eval(ctx *context) (fType, error) {
-	value, err := node.expr.eval(ctx)
-	if err != nil {
-		return nil, err
+func (node *valueRes) eval(ctx *context) fType {
+	value := node.expr.eval(ctx)
+	if fErr, ok := value.(fError); ok {
+		return fErr
 	}
 	return node.next.resolve(ctx, value)
 }
 
-func (node *valueRes) resolve(ctx *context, ns fType) (fType, error) {
-	return nil, nil
+func (node *valueRes) resolve(ctx *context, ns fType) fType {
+	return nil
 }
 
 type indexRes struct {
@@ -41,49 +39,49 @@ func (node *indexRes) setNext(next resolver) {
 	node.next = next
 }
 
-func (node *indexRes) resolve(ctx *context, ns fType) (fType, error) {
-	index, err := node.expr.eval(ctx)
-	if err != nil {
-		return nil, err
+func (node *indexRes) resolve(ctx *context, ns fType) fType {
+	index := node.expr.eval(ctx)
+	if fErr, ok := index.(fError); ok {
+		return fErr
 	}
 	switch v := ns.(type) {
 	case fDict:
 		i, isStr := index.(fString)
 		if !isStr {
-			return nil, errors.New("Dicts can only be indexed with strings.")
+			return fError{"Dicts can only be indexed with strings."}
 		}
 		res, exists := v[string(i)]
 		if exists {
 			if node.next == nil {
 				return res.eval(ctx)
 			}
-			ns, err := res.eval(ctx)
-			if err != nil {
-				return nil, err
+			ns := res.eval(ctx)
+			if fErr, ok := ns.(fError); ok {
+				return fErr
 			}
 			return node.next.resolve(ctx, ns)
 		}
-		return nil, nil
+		return nil
 	case fList:
 		i, isNum := index.(fNumber)
 		if !isNum {
-			return nil, errors.New("Lists can only be indexed with numbers.")
+			return fError{"Lists can only be indexed with numbers."}
 		}
 		ii := int(i)
 		if ii > len(v)-1 || ii < 0 {
-			return nil, errors.New("Index out of range.")
+			return fError{"Index out of range."}
 		}
 		res := v[ii]
 		if node.next == nil {
 			return res.eval(ctx)
 		}
-		ns, err := res.eval(ctx)
-		if err != nil {
-			return nil, err
+		ns := res.eval(ctx)
+		if fErr, ok := ns.(fError); ok {
+			return fErr
 		}
 		return node.next.resolve(ctx, ns)
 	}
-	return nil, errors.New("Only lists and dicts can be indexed.")
+	return fError{"Only lists and dicts can be indexed."}
 }
 
 type attribRes struct {
@@ -95,11 +93,11 @@ func (node *attribRes) setNext(next resolver) {
 	node.next = next
 }
 
-func (node *attribRes) eval(ctx *context) (fType, error) {
+func (node *attribRes) eval(ctx *context) fType {
 	return node.resolve(ctx, ctx.meta)
 }
 
-func (node *attribRes) resolve(ctx *context, ns fType) (fType, error) {
+func (node *attribRes) resolve(ctx *context, ns fType) fType {
 	switch t := ns.(type) {
 	case fDict:
 		res, exists := t[node.identifier]
@@ -107,15 +105,15 @@ func (node *attribRes) resolve(ctx *context, ns fType) (fType, error) {
 			if node.next == nil {
 				return res.eval(ctx)
 			}
-			ns, err := res.eval(ctx)
-			if err != nil {
-				return nil, err
+			ns := res.eval(ctx)
+			if fErr, ok := ns.(fError); ok {
+				return fErr
 			}
 			return node.next.resolve(ctx, ns)
 		}
-		return nil, nil
+		return nil
 	}
-	return nil, errors.New("Trying to access name in non-object type.")
+	return fError{"Trying to access name in non-object type."}
 }
 
 type compNode struct {
@@ -133,73 +131,73 @@ const (
 	GR
 )
 
-func (node *compNode) eval(ctx *context) (fType, error) {
-	left, err := node.left.eval(ctx)
-	if err != nil {
-		return nil, err
+func (node *compNode) eval(ctx *context) fType {
+	left := node.left.eval(ctx)
+	if fErr, ok := left.(fError); ok {
+		return fErr
 	}
-	right, err := node.right.eval(ctx)
-	if err != nil {
-		return nil, err
+	right := node.right.eval(ctx)
+	if fErr, ok := right.(fError); ok {
+		return fErr
 	}
 	switch l := left.(type) {
 	case nil:
 		if right == nil {
-			return fBool(true), nil
+			return fBool(true)
 		}
-		return fBool(false), nil
+		return fBool(false)
 	case fBool:
 		r, same := right.(fBool)
 		if !same {
-			return fBool(false), nil
+			return fBool(false)
 		}
 		switch node.op {
 		case EQ:
-			return fBool(l == r), nil
+			return fBool(l == r)
 		case NEQ:
-			return fBool(l != r), nil
+			return fBool(l != r)
 		}
-		return nil, errors.New("Booleans are not orderable.")
+		return fError{"Booleans are not orderable."}
 	case fNumber:
 		r, same := right.(fNumber)
 		if !same {
-			return fBool(false), nil
+			return fBool(false)
 		}
 		switch node.op {
 		case EQ:
-			return fBool(l == r), nil
+			return fBool(l == r)
 		case NEQ:
-			return fBool(l != r), nil
+			return fBool(l != r)
 		case LEEQ:
-			return fBool(l <= r), nil
+			return fBool(l <= r)
 		case GREQ:
-			return fBool(l >= r), nil
+			return fBool(l >= r)
 		case LE:
-			return fBool(l < r), nil
+			return fBool(l < r)
 		case GR:
-			return fBool(l > r), nil
+			return fBool(l > r)
 		}
 	case fString:
 		r, same := right.(fString)
 		if !same {
-			return fBool(false), nil
+			return fBool(false)
 		}
 		switch node.op {
 		case EQ:
-			return fBool(l == r), nil
+			return fBool(l == r)
 		case NEQ:
-			return fBool(l != r), nil
+			return fBool(l != r)
 		case LEEQ:
-			return fBool(l <= r), nil
+			return fBool(l <= r)
 		case GREQ:
-			return fBool(l >= r), nil
+			return fBool(l >= r)
 		case LE:
-			return fBool(l < r), nil
+			return fBool(l < r)
 		case GR:
-			return fBool(l > r), nil
+			return fBool(l > r)
 		}
 	}
-	return nil, errors.New("Only numbers and strings can be compared.")
+	return fError{"Only numbers and strings can be compared."}
 }
 
 type addNode struct {
@@ -208,36 +206,36 @@ type addNode struct {
 	right expression
 }
 
-func (node *addNode) eval(ctx *context) (fType, error) {
-	left, err := node.left.eval(ctx)
-	if err != nil {
-		return nil, err
+func (node *addNode) eval(ctx *context) fType {
+	left := node.left.eval(ctx)
+	if fErr, ok := left.(fError); ok {
+		return fErr
 	}
-	right, err := node.right.eval(ctx)
-	if err != nil {
-		return nil, err
+	right := node.right.eval(ctx)
+	if fErr, ok := right.(fError); ok {
+		return fErr
 	}
 	switch l := left.(type) {
 	case fNumber:
 		r, same := right.(fNumber)
 		if !same {
-			return nil, errors.New("Nubers can only be added to numbers.")
+			return fError{"Nubers can only be added to numbers."}
 		}
 		if node.op == '+' {
-			return l + r, nil
+			return l + r
 		}
-		return l - r, nil
+		return l - r
 	case fString:
 		r, same := right.(fString)
 		if !same {
-			return nil, errors.New("Strings can only be added to strings.")
+			return fError{"Strings can only be added to strings."}
 		}
 		if node.op == '+' {
-			return l + r, nil
+			return l + r
 		}
-		return nil, errors.New("Strings can not be subtracted from strings.")
+		return fError{"Strings can not be subtracted from strings."}
 	}
-	return nil, errors.New("Only numbers and strings can be added.")
+	return fError{"Only numbers and strings can be added."}
 }
 
 type multNode struct {
@@ -246,27 +244,27 @@ type multNode struct {
 	right expression
 }
 
-func (node *multNode) eval(ctx *context) (fType, error) {
-	left, err := node.left.eval(ctx)
-	if err != nil {
-		return nil, err
+func (node *multNode) eval(ctx *context) fType {
+	left := node.left.eval(ctx)
+	if fErr, ok := left.(fError); ok {
+		return fErr
 	}
-	right, err := node.right.eval(ctx)
-	if err != nil {
-		return nil, err
+	right := node.right.eval(ctx)
+	if fErr, ok := right.(fError); ok {
+		return fErr
 	}
 	switch l := left.(type) {
 	case fNumber:
 		r, same := right.(fNumber)
 		if !same {
-			return nil, errors.New("Nubers can only be multiplied by numbers.")
+			return fError{"Nubers can only be multiplied by numbers."}
 		}
 		if node.op == '*' {
-			return l * r, nil
+			return l * r
 		}
-		return l / r, nil
+		return l / r
 	}
-	return nil, errors.New("Only numbers can be multiplied.")
+	return fError{"Only numbers can be multiplied."}
 }
 
 type andNode struct {
@@ -274,16 +272,16 @@ type andNode struct {
 	right expression
 }
 
-func (node *andNode) eval(ctx *context) (fType, error) {
-	left, err := node.left.eval(ctx)
-	if err != nil {
-		return nil, err
+func (node *andNode) eval(ctx *context) fType {
+	left := node.left.eval(ctx)
+	if fErr, ok := left.(fError); ok {
+		return fErr
 	}
-	right, err := node.right.eval(ctx)
-	if err != nil {
-		return nil, err
+	right := node.right.eval(ctx)
+	if fErr, ok := right.(fError); ok {
+		return fErr
 	}
-	return left.boolVal() && right.boolVal(), nil
+	return left.boolVal() && right.boolVal()
 }
 
 type orNode struct {
@@ -291,14 +289,14 @@ type orNode struct {
 	right expression
 }
 
-func (node *orNode) eval(ctx *context) (fType, error) {
-	left, err := node.left.eval(ctx)
-	if err != nil {
-		return nil, err
+func (node *orNode) eval(ctx *context) fType {
+	left := node.left.eval(ctx)
+	if fErr, ok := left.(fError); ok {
+		return fErr
 	}
-	right, err := node.right.eval(ctx)
-	if err != nil {
-		return nil, err
+	right := node.right.eval(ctx)
+	if fErr, ok := right.(fError); ok {
+		return fErr
 	}
-	return left.boolVal() || right.boolVal(), nil
+	return left.boolVal() || right.boolVal()
 }

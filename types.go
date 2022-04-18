@@ -3,7 +3,6 @@ package feta
 import (
 	"encoding/json"
 	"errors"
-	"time"
 )
 
 type fType interface {
@@ -16,8 +15,8 @@ func (value fBool) boolVal() fBool {
 	return value
 }
 
-func (value fBool) eval(ctx *context) (fType, error) {
-	return value, nil
+func (value fBool) eval(ctx *context) fType {
+	return value
 }
 
 type fNumber float64
@@ -26,8 +25,8 @@ func (value fNumber) boolVal() fBool {
 	return value != 0
 }
 
-func (value fNumber) eval(ctx *context) (fType, error) {
-	return value, nil
+func (value fNumber) eval(ctx *context) fType {
+	return value
 }
 
 type fString string
@@ -36,8 +35,8 @@ func (value fString) boolVal() fBool {
 	return value != ""
 }
 
-func (value fString) eval(ctx *context) (fType, error) {
-	return value, nil
+func (value fString) eval(ctx *context) fType {
+	return value
 }
 
 type fDict map[string]expression
@@ -46,15 +45,15 @@ func (value fDict) boolVal() fBool {
 	return len(value) != 0
 }
 
-func (value fDict) eval(ctx *context) (fType, error) {
+func (value fDict) eval(ctx *context) fType {
 	for k, elm := range value {
-		res, err := elm.eval(ctx)
-		if err != nil {
-			return nil, err
+		res := elm.eval(ctx)
+		if fErr, ok := res.(fError); ok {
+			return fErr
 		}
 		value[k] = res.(expression)
 	}
-	return value, nil
+	return value
 }
 
 type fList []expression
@@ -63,19 +62,27 @@ func (value fList) boolVal() fBool {
 	return len(value) != 0
 }
 
-func (value fList) eval(ctx *context) (fType, error) {
+func (value fList) eval(ctx *context) fType {
 	for i, elm := range value {
-		res, err := elm.eval(ctx)
-		if err != nil {
-			return nil, err
+		res := elm.eval(ctx)
+		if fErr, ok := res.(fError); ok {
+			return fErr
 		}
 		value[i] = res.(expression)
 	}
-	return value, nil
+	return value
 }
 
 type fError struct {
 	msg string
+}
+
+func (value fError) boolVal() fBool {
+	return len(value.msg) != 0
+}
+
+func (value fError) eval(ctx *context) fType {
+	return value
 }
 
 func (e fError) Error() string {
@@ -84,22 +91,6 @@ func (e fError) Error() string {
 
 func (e fError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(e.msg)
-}
-
-type fTime time.Time
-
-func (t fTime) String() string {
-	return time.Time(t).Format(time.RFC3339)
-}
-
-func (t fTime) MarshalJSON() ([]byte, error) {
-	return []byte("\"T" + t.String() + "\""), nil
-}
-
-type fExpr string
-
-func (x fExpr) MarshalJSON() ([]byte, error) {
-	return []byte("\"=" + x + "\""), nil
 }
 
 func typeConvert(i interface{}) (fType, error) {

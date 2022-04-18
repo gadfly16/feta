@@ -6,14 +6,14 @@ var procedurals fDict = fDict{
 	"obj": &objProc{},
 }
 
-func (node *objProc) eval(ctx *context) (fType, error) {
+func (node *objProc) eval(ctx *context) fType {
 	fi, err := ctx.obj.dirEntry.Info()
 	if err != nil {
-		return nil, err
+		return fError{err.Error()}
 	}
 	return fDict{
 		"name":  fString(fi.Name()),
 		"isDir": fBool(fi.IsDir()),
 		"size":  fNumber(fi.Size()),
-	}, nil
+	}
 }

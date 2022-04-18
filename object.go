@@ -205,3 +205,11 @@ func (o *object) getProject() (*object, error) {
 	o.isProjSet = true
 	return proj, nil
 }
+
+func (value *object) eval(ctx *context) fType {
+	return value
+}
+
+func (value *object) boolVal() fBool {
+	return true
+}
