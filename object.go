@@ -21,7 +21,7 @@ type object struct {
 	isProjSet bool
 	project   *object
 	children  []*object
-	meta      fType
+	meta      fDict
 }
 
 func newObject(parent *object, dirEntry os.DirEntry) (o *object) {
@@ -131,7 +131,7 @@ func InitSite(path string) (string, error) {
 	return absPath, nil
 }
 
-func (o *object) getMeta() (fType, error) {
+func (o *object) getMeta() (fDict, error) {
 	if o.meta != nil {
 		return o.meta, nil
 	}
@@ -145,7 +145,9 @@ func (o *object) getMeta() (fType, error) {
 	js, err := ioutil.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fDict{}, nil
+			meta := fDict{}
+			insertProcedurals(meta)
+			return meta, nil
 		}
 		return nil, fmt.Errorf("Couldn't read meta file: %v", err)
 	}
@@ -158,11 +160,15 @@ func (o *object) getMeta() (fType, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't type-convert meta file '%s': %v", path, err)
 	}
+	insertProcedurals(meta.(fDict))
+	o.meta = meta.(fDict)
+	return o.meta, nil
+}
+
+func insertProcedurals(meta fDict) {
 	for k, v := range procedurals {
-		meta.(fDict)[k] = v
+		meta[k] = v
 	}
-	o.meta = meta
-	return meta, nil
 }
 
 func fileExists(path string) (bool, error) {
@@ -206,7 +212,7 @@ func (o *object) getProject() (*object, error) {
 	return proj, nil
 }
 
-func (value *object) eval(ctx *context) fType {
+func (value *object) eval(ctx *context) fNode {
 	return value
 }
 

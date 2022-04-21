@@ -8,7 +8,7 @@ import (
 
 type context struct {
 	obj  *object
-	meta fType
+	meta fNode
 }
 
 type selector interface {
@@ -149,7 +149,7 @@ func (sel *recurseSel) sel(ctx *context) fList {
 }
 
 type tailSel struct {
-	expr expression
+	expr fNode
 }
 
 func (sel *tailSel) setNext(next selector) {
@@ -167,21 +167,21 @@ func (sel *tailSel) sel(ctx *context) fList {
 			if fErr, ok := pr.(fError); ok {
 				return fList{fErr}
 			}
-			ns.(fDict)[k] = pr.(expression)
+			ns[k] = pr
 		}
-		res["Value"] = ns.(fDict)
+		res["Value"] = ns
 		return fList{res}
 	}
 	meta := sel.expr.eval(&context{obj: ctx.obj, meta: ns})
 	if fErr, ok := meta.(fError); ok {
 		return fList{fErr}
 	}
-	res["Value"] = meta.(expression)
+	res["Value"] = meta
 	return fList{res}
 }
 
 type filterSel struct {
-	expr expression
+	expr fNode
 	next selector
 }
 
@@ -198,7 +198,7 @@ func (sel *filterSel) get(ctx *context) fList {
 	if fErr, ok := value.(fError); ok {
 		return fList{fErr}
 	}
-	if value != nil && value.boolVal() {
+	if value != nil && boolVal(value) {
 		if sel.next != nil {
 			return sel.next.sel(ctx)
 		}

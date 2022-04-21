@@ -50,13 +50,13 @@ Query = sels_:Selector* tail:Tail? EOF {
 // Expression nodes
 
 Expression = first:Level_A rest_:(Or Level_A)* {
-	left := first.(expression)
+	left := first.(fNode)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*orNode)
 		node.left = left
-		node.right = comp[1].(expression)
+		node.right = comp[1].(fNode)
 		left = node 
 	}
 	return left, nil
@@ -67,13 +67,13 @@ Or = "||" {
 }
 
 Level_A = first:Level_B rest_:(And Level_B)* {
-	left := first.(expression)
+	left := first.(fNode)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*andNode)
 		node.left = left
-		node.right = comp[1].(expression)
+		node.right = comp[1].(fNode)
 		left = node 
 	}
 	return left, nil
@@ -84,13 +84,13 @@ And = "&&" {
 }
 
 Level_B = first:Level_C rest_:(Comparison Level_C)* {
-	left := first.(expression)
+	left := first.(fNode)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*compNode)
 		node.left = left
-		node.right = comp[1].(expression)
+		node.right = comp[1].(fNode)
 		left = node 
 	}
 	return left, nil
@@ -113,13 +113,13 @@ Comparison = ("==" / "!=" / "<=" / ">=" / "<" / ">") {
 }
 
 Level_C = first:Level_D rest_:(Additive Level_D)* {
-	left := first.(expression)
+	left := first.(fNode)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*addNode)
 		node.left = left
-		node.right = comp[1].(expression)
+		node.right = comp[1].(fNode)
 		left = node 
 	}
 	return left, nil
@@ -130,13 +130,13 @@ Additive = ('+' / '-') {
 }
 
 Level_D = first:Resolution rest_:(Multiplicative Resolution)* {
-	left := first.(expression)
+	left := first.(fNode)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*multNode)
 		node.left = left
-		node.right = comp[1].(expression)
+		node.right = comp[1].(fNode)
 		left = node 
 	}
 	return left, nil
@@ -162,16 +162,16 @@ Resolution = first:Value rest_:Resolver* {
 		f.setNext(last)
 		return f, nil
 	default:
-		first = &valueRes{expr: first.(expression)}
+		first = &valueRes{expr: first.(fNode)}
 	} 
 	first.(resolver).setNext(last)
-	return first.(expression), nil
+	return first.(fNode), nil
 }
 
 Resolver = Attribute / Index
 
 Index = '[' expr:Expression ']' {
-	return &indexRes{expr: expr.(expression)}, nil
+	return &indexRes{expr: expr.(fNode)}, nil
 }
 
 Attribute = '.' identifier:Identifier {
@@ -184,10 +184,10 @@ Value =  Bool / Number / String / Identifier / List / Dict / '(' expr:Expression
 
 List = '[' first:Expression rest_:ListElements* ']' {
 	rest := toList(rest_)
-	list := make([]expression, len(rest)+1)
-	list[0] = first.(expression)
+	list := make([]fNode, len(rest)+1)
+	list[0] = first.(fNode)
 	for i, elm := range rest {
-		list[i+1] = elm.(expression)
+		list[i+1] = elm.(fNode)
 	}
 	return fList(list), nil
 }
@@ -199,11 +199,11 @@ ListElements = ',' expr:Expression {
 Dict = '{' first_:(Identifier ':' Expression) rest_:(',' Identifier ':' Expression)* '}' {
 	first := toList(first_)
 	rest := toList(rest_)
-	dict := make(map[string]expression)
-	dict[first[0].(*attribRes).identifier] = first[2].(expression)
+	dict := make(map[string]fNode)
+	dict[first[0].(*attribRes).identifier] = first[2].(fNode)
 	for _, kvp_ := range rest {
 		kvp := toList(kvp_)
-		dict[kvp[1].(*attribRes).identifier] = kvp[3].(expression)
+		dict[kvp[1].(*attribRes).identifier] = kvp[3].(fNode)
 	}
 	return fDict(dict), nil
 }
@@ -252,7 +252,7 @@ Selector = Recurse / Relative / Dir / Pattern / Filter
 
 Tail = '@' expr:Expression {
 	Log("Parser: in tail")
-	return &tailSel{expr: expr.(expression)}, nil
+	return &tailSel{expr: expr.(fNode)}, nil
 } / '@' {
 	return &tailSel{}, nil
 }
@@ -262,7 +262,7 @@ Dir = dirs_:'/'+ {
 }
 
 Filter = "(?" expr:Expression ')' {
-	return &filterSel{expr: expr.(expression)}, nil
+	return &filterSel{expr: expr.(fNode)}, nil
 }
 
 Relative = rel_:'.'+ &OpStop {

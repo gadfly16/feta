@@ -1,16 +1,12 @@
 package feta
 
-type expression interface {
-	eval(*context) fType
-}
-
 type resolver interface {
 	setNext(resolver)
-	resolve(*context, fType) fType
+	resolve(*context, fNode) fNode
 }
 
 type valueRes struct {
-	expr expression
+	expr fNode
 	next resolver
 }
 
@@ -18,7 +14,7 @@ func (node *valueRes) setNext(next resolver) {
 	node.next = next
 }
 
-func (node *valueRes) eval(ctx *context) fType {
+func (node *valueRes) eval(ctx *context) fNode {
 	value := node.expr.eval(ctx)
 	if fErr, ok := value.(fError); ok {
 		return fErr
@@ -26,12 +22,12 @@ func (node *valueRes) eval(ctx *context) fType {
 	return node.next.resolve(ctx, value)
 }
 
-func (node *valueRes) resolve(ctx *context, ns fType) fType {
+func (node *valueRes) resolve(ctx *context, ns fNode) fNode {
 	return nil
 }
 
 type indexRes struct {
-	expr expression
+	expr fNode
 	next resolver
 }
 
@@ -39,7 +35,7 @@ func (node *indexRes) setNext(next resolver) {
 	node.next = next
 }
 
-func (node *indexRes) resolve(ctx *context, ns fType) fType {
+func (node *indexRes) resolve(ctx *context, ns fNode) fNode {
 	index := node.expr.eval(ctx)
 	if fErr, ok := index.(fError); ok {
 		return fErr
@@ -93,11 +89,11 @@ func (node *attribRes) setNext(next resolver) {
 	node.next = next
 }
 
-func (node *attribRes) eval(ctx *context) fType {
+func (node *attribRes) eval(ctx *context) fNode {
 	return node.resolve(ctx, ctx.meta)
 }
 
-func (node *attribRes) resolve(ctx *context, ns fType) fType {
+func (node *attribRes) resolve(ctx *context, ns fNode) fNode {
 	switch t := ns.(type) {
 	case fDict:
 		res, exists := t[node.identifier]
@@ -118,8 +114,8 @@ func (node *attribRes) resolve(ctx *context, ns fType) fType {
 
 type compNode struct {
 	op    byte
-	left  expression
-	right expression
+	left  fNode
+	right fNode
 }
 
 const (
@@ -131,7 +127,7 @@ const (
 	GR
 )
 
-func (node *compNode) eval(ctx *context) fType {
+func (node *compNode) eval(ctx *context) fNode {
 	left := node.left.eval(ctx)
 	if fErr, ok := left.(fError); ok {
 		return fErr
@@ -202,11 +198,11 @@ func (node *compNode) eval(ctx *context) fType {
 
 type addNode struct {
 	op    byte
-	left  expression
-	right expression
+	left  fNode
+	right fNode
 }
 
-func (node *addNode) eval(ctx *context) fType {
+func (node *addNode) eval(ctx *context) fNode {
 	left := node.left.eval(ctx)
 	if fErr, ok := left.(fError); ok {
 		return fErr
@@ -240,11 +236,11 @@ func (node *addNode) eval(ctx *context) fType {
 
 type multNode struct {
 	op    byte
-	left  expression
-	right expression
+	left  fNode
+	right fNode
 }
 
-func (node *multNode) eval(ctx *context) fType {
+func (node *multNode) eval(ctx *context) fNode {
 	left := node.left.eval(ctx)
 	if fErr, ok := left.(fError); ok {
 		return fErr
@@ -268,11 +264,11 @@ func (node *multNode) eval(ctx *context) fType {
 }
 
 type andNode struct {
-	left  expression
-	right expression
+	left  fNode
+	right fNode
 }
 
-func (node *andNode) eval(ctx *context) fType {
+func (node *andNode) eval(ctx *context) fNode {
 	left := node.left.eval(ctx)
 	if fErr, ok := left.(fError); ok {
 		return fErr
@@ -281,15 +277,15 @@ func (node *andNode) eval(ctx *context) fType {
 	if fErr, ok := right.(fError); ok {
 		return fErr
 	}
-	return left.boolVal() && right.boolVal()
+	return boolVal(left) && boolVal(right)
 }
 
 type orNode struct {
-	left  expression
-	right expression
+	left  fNode
+	right fNode
 }
 
-func (node *orNode) eval(ctx *context) fType {
+func (node *orNode) eval(ctx *context) fNode {
 	left := node.left.eval(ctx)
 	if fErr, ok := left.(fError); ok {
 		return fErr
@@ -298,5 +294,5 @@ func (node *orNode) eval(ctx *context) fType {
 	if fErr, ok := right.(fError); ok {
 		return fErr
 	}
-	return left.boolVal() || right.boolVal()
+	return boolVal(left) || boolVal(right)
 }
