@@ -6,7 +6,7 @@ var procedurals fDict = fDict{
 	"obj": &objProc{},
 }
 
-func (node *objProc) eval(ctx *context) fNode {
+func (node *objProc) eval(ctx *context) fExpr {
 	fi, err := ctx.obj.dirEntry.Info()
 	if err != nil {
 		return fError{err.Error()}

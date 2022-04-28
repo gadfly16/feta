@@ -8,7 +8,7 @@ import (
 
 type context struct {
 	obj  *object
-	meta fNode
+	meta fExpr
 }
 
 type selector interface {
@@ -149,7 +149,7 @@ func (sel *recurseSel) sel(ctx *context) fList {
 }
 
 type tailSel struct {
-	expr fNode
+	expr fExpr
 }
 
 func (sel *tailSel) setNext(next selector) {
@@ -181,7 +181,7 @@ func (sel *tailSel) sel(ctx *context) fList {
 }
 
 type filterSel struct {
-	expr fNode
+	expr fExpr
 	next selector
 }
 

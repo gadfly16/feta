@@ -1,7 +1,6 @@
 package feta
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
@@ -15,9 +14,5 @@ func Get(query string, workDir string) ([]byte, error) {
 		return nil, fmt.Errorf("Couldn't parse query '%s': %v", query, err)
 	}
 	res := ast.(selector).sel(&context{obj: workDirObj})
-	j, err := json.Marshal(res)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't marshal objects: %v", err)
-	}
-	return j, nil
+	return marshal(res, !Flags.UglyJSON), nil
 }

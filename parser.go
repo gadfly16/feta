@@ -1275,13 +1275,13 @@ func (p *parser) callonQuery1() (interface{}, error) {
 }
 
 func (c *current) onExpression1(first, rest_ interface{}) (interface{}, error) {
-	left := first.(fNode)
+	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*orNode)
 		node.left = left
-		node.right = comp[1].(fNode)
+		node.right = comp[1].(fExpr)
 		left = node
 	}
 	return left, nil
@@ -1304,13 +1304,13 @@ func (p *parser) callonOr1() (interface{}, error) {
 }
 
 func (c *current) onLevel_A1(first, rest_ interface{}) (interface{}, error) {
-	left := first.(fNode)
+	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*andNode)
 		node.left = left
-		node.right = comp[1].(fNode)
+		node.right = comp[1].(fExpr)
 		left = node
 	}
 	return left, nil
@@ -1333,13 +1333,13 @@ func (p *parser) callonAnd1() (interface{}, error) {
 }
 
 func (c *current) onLevel_B1(first, rest_ interface{}) (interface{}, error) {
-	left := first.(fNode)
+	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*compNode)
 		node.left = left
-		node.right = comp[1].(fNode)
+		node.right = comp[1].(fExpr)
 		left = node
 	}
 	return left, nil
@@ -1374,13 +1374,13 @@ func (p *parser) callonComparison1() (interface{}, error) {
 }
 
 func (c *current) onLevel_C1(first, rest_ interface{}) (interface{}, error) {
-	left := first.(fNode)
+	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*addNode)
 		node.left = left
-		node.right = comp[1].(fNode)
+		node.right = comp[1].(fExpr)
 		left = node
 	}
 	return left, nil
@@ -1403,13 +1403,13 @@ func (p *parser) callonAdditive1() (interface{}, error) {
 }
 
 func (c *current) onLevel_D1(first, rest_ interface{}) (interface{}, error) {
-	left := first.(fNode)
+	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*multNode)
 		node.left = left
-		node.right = comp[1].(fNode)
+		node.right = comp[1].(fExpr)
 		left = node
 	}
 	return left, nil
@@ -1447,10 +1447,10 @@ func (c *current) onResolution1(first, rest_ interface{}) (interface{}, error) {
 		f.setNext(last)
 		return f, nil
 	default:
-		first = &valueRes{expr: first.(fNode)}
+		first = &valueRes{expr: first.(fExpr)}
 	}
 	first.(resolver).setNext(last)
-	return first.(fNode), nil
+	return first.(fExpr), nil
 }
 
 func (p *parser) callonResolution1() (interface{}, error) {
@@ -1460,7 +1460,7 @@ func (p *parser) callonResolution1() (interface{}, error) {
 }
 
 func (c *current) onIndex1(expr interface{}) (interface{}, error) {
-	return &indexRes{expr: expr.(fNode)}, nil
+	return &indexRes{expr: expr.(fExpr)}, nil
 }
 
 func (p *parser) callonIndex1() (interface{}, error) {
@@ -1491,10 +1491,10 @@ func (p *parser) callonValue8() (interface{}, error) {
 
 func (c *current) onList1(first, rest_ interface{}) (interface{}, error) {
 	rest := toList(rest_)
-	list := make([]fNode, len(rest)+1)
-	list[0] = first.(fNode)
+	list := make([]fExpr, len(rest)+1)
+	list[0] = first.(fExpr)
 	for i, elm := range rest {
-		list[i+1] = elm.(fNode)
+		list[i+1] = elm.(fExpr)
 	}
 	return fList(list), nil
 }
@@ -1518,11 +1518,11 @@ func (p *parser) callonListElements1() (interface{}, error) {
 func (c *current) onDict1(first_, rest_ interface{}) (interface{}, error) {
 	first := toList(first_)
 	rest := toList(rest_)
-	dict := make(map[string]fNode)
-	dict[first[0].(*attribRes).identifier] = first[2].(fNode)
+	dict := make(map[string]fExpr)
+	dict[first[0].(*attribRes).identifier] = first[2].(fExpr)
 	for _, kvp_ := range rest {
 		kvp := toList(kvp_)
-		dict[kvp[1].(*attribRes).identifier] = kvp[3].(fNode)
+		dict[kvp[1].(*attribRes).identifier] = kvp[3].(fExpr)
 	}
 	return fDict(dict), nil
 }
@@ -1587,7 +1587,7 @@ func (p *parser) callonString1() (interface{}, error) {
 
 func (c *current) onTail2(expr interface{}) (interface{}, error) {
 	Log("Parser: in tail")
-	return &tailSel{expr: expr.(fNode)}, nil
+	return &tailSel{expr: expr.(fExpr)}, nil
 }
 
 func (p *parser) callonTail2() (interface{}, error) {
@@ -1617,7 +1617,7 @@ func (p *parser) callonDir1() (interface{}, error) {
 }
 
 func (c *current) onFilter1(expr interface{}) (interface{}, error) {
-	return &filterSel{expr: expr.(fNode)}, nil
+	return &filterSel{expr: expr.(fExpr)}, nil
 }
 
 func (p *parser) callonFilter1() (interface{}, error) {

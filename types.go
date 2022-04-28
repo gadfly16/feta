@@ -5,23 +5,20 @@ import (
 	"errors"
 )
 
-type fNode interface {
-	eval(*context) fNode
+type fExpr interface {
+	eval(*context) fExpr
 }
 
 type (
 	fBool   bool
 	fNumber float64
 	fString string
-	fDict   map[string]fNode
-	fList   []fNode
+	fDict   map[string]fExpr
+	fList   []fExpr
+	fError  struct{ msg string }
 )
 
-type fError struct {
-	msg string
-}
-
-func boolVal(node fNode) fBool {
+func boolVal(node fExpr) fBool {
 	switch n := node.(type) {
 	case fBool:
 		return n
@@ -39,19 +36,19 @@ func boolVal(node fNode) fBool {
 	return fBool(true)
 }
 
-func (value fBool) eval(ctx *context) fNode {
+func (value fBool) eval(ctx *context) fExpr {
 	return value
 }
 
-func (value fNumber) eval(ctx *context) fNode {
+func (value fNumber) eval(ctx *context) fExpr {
 	return value
 }
 
-func (value fString) eval(ctx *context) fNode {
+func (value fString) eval(ctx *context) fExpr {
 	return value
 }
 
-func (value fDict) eval(ctx *context) fNode {
+func (value fDict) eval(ctx *context) fExpr {
 	for k, elm := range value {
 		res := elm.eval(ctx)
 		if fErr, ok := res.(fError); ok {
@@ -62,7 +59,7 @@ func (value fDict) eval(ctx *context) fNode {
 	return value
 }
 
-func (value fList) eval(ctx *context) fNode {
+func (value fList) eval(ctx *context) fExpr {
 	for i, elm := range value {
 		res := elm.eval(ctx)
 		if fErr, ok := res.(fError); ok {
@@ -73,7 +70,7 @@ func (value fList) eval(ctx *context) fNode {
 	return value
 }
 
-func (value fError) eval(ctx *context) fNode {
+func (value fError) eval(ctx *context) fExpr {
 	return value
 }
 
@@ -85,7 +82,7 @@ func (e fError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(e.msg)
 }
 
-func typeConvert(i interface{}) (fNode, error) {
+func typeConvert(i interface{}) (fExpr, error) {
 	switch t := i.(type) {
 	case map[string]interface{}:
 		m := make(fDict)

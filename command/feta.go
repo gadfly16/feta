@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tidwall/pretty"
-
 	"github.com/gadfly16/feta"
 )
 
@@ -51,11 +49,6 @@ func main() {
 		res, err := feta.Get(flag.Arg(1), wd)
 		if err != nil {
 			feta.Fatal(err)
-		}
-		if feta.Flags.UglyJSON {
-			res = append(res, '\n')
-		} else {
-			res = pretty.Color(pretty.Pretty(res), nil)
 		}
 		fmt.Fprint(out, string(res))
 	// case "set":

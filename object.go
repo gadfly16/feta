@@ -212,7 +212,7 @@ func (o *object) getProject() (*object, error) {
 	return proj, nil
 }
 
-func (value *object) eval(ctx *context) fNode {
+func (value *object) eval(ctx *context) fExpr {
 	return value
 }
 
