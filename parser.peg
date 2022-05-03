@@ -49,14 +49,14 @@ Query = sels_:Selector* tail:Tail? EOF {
 
 // Expression nodes
 
-Expression = first:Level_A rest_:(Or Level_A)* {
+Expression = _ first:Level_A _ rest_:(Or _ Level_A)* _ {
 	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*orNode)
 		node.left = left
-		node.right = comp[1].(fExpr)
+		node.right = comp[2].(fExpr)
 		left = node 
 	}
 	return left, nil
@@ -66,14 +66,14 @@ Or = "||" {
 	return &orNode{}, nil
 }
 
-Level_A = first:Level_B rest_:(And Level_B)* {
+Level_A = first:Level_B _ rest_:(And _ Level_B)* {
 	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*andNode)
 		node.left = left
-		node.right = comp[1].(fExpr)
+		node.right = comp[2].(fExpr)
 		left = node 
 	}
 	return left, nil
@@ -83,14 +83,14 @@ And = "&&" {
 	return &andNode{}, nil
 }
 
-Level_B = first:Level_C rest_:(Comparison Level_C)* {
+Level_B = first:Level_C _ rest_:(Comparison _ Level_C)* {
 	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
-		node := comp[0].(*compNode)
+		node := comp[0].(*compareNode)
 		node.left = left
-		node.right = comp[1].(fExpr)
+		node.right = comp[2].(fExpr)
 		left = node 
 	}
 	return left, nil
@@ -99,27 +99,27 @@ Level_B = first:Level_C rest_:(Comparison Level_C)* {
 Comparison = ("==" / "!=" / "<=" / ">=" / "<" / ">") {
 	switch string(c.text) {
 	case "==":
-		return &compNode{op: EQ}, nil
+		return &compareNode{op: EQ}, nil
 	case "!=":
-		return &compNode{op: NEQ}, nil
+		return &compareNode{op: NEQ}, nil
 	case "<=":
-		return &compNode{op: LEEQ}, nil
+		return &compareNode{op: LEEQ}, nil
 	case ">=":
-		return &compNode{op: GREQ}, nil
+		return &compareNode{op: GREQ}, nil
 	case "<":
-		return &compNode{op: LE}, nil
+		return &compareNode{op: LE}, nil
 	}
-	return &compNode{op: GR}, nil
+	return &compareNode{op: GR}, nil
 }
 
-Level_C = first:Level_D rest_:(Additive Level_D)* {
+Level_C = first:Level_D _ rest_:(Additive _ Level_D)* {
 	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*addNode)
 		node.left = left
-		node.right = comp[1].(fExpr)
+		node.right = comp[2].(fExpr)
 		left = node 
 	}
 	return left, nil
@@ -129,14 +129,14 @@ Additive = ('+' / '-') {
 	return &addNode{op: c.text[0]}, nil
 }
 
-Level_D = first:Resolution rest_:(Multiplicative Resolution)* {
+Level_D = first:Resolution _ rest_:(Multiplicative _ Resolution)* {
 	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
 		comp := toList(comp_)
 		node := comp[0].(*multNode)
 		node.left = left
-		node.right = comp[1].(fExpr)
+		node.right = comp[2].(fExpr)
 		left = node 
 	}
 	return left, nil
@@ -146,31 +146,35 @@ Multiplicative = ('*' / '/') {
 	return &multNode{op: c.text[0]}, nil
 }
 
-Resolution = first:Value rest_:Resolver* {
+Resolution = isRaw:'@'? first:Value rest_:Resolver* {
+	raw := isRaw != nil
 	rest := toList(rest_)
 	if len(rest) == 0 {
+		if f, ok := first.(*attribRes); ok {
+			f.setNextAndRaw(nil, raw)
+		}
 		return first, nil
 	}
 	var last resolver
 	for i:=len(rest)-1; i>=0; i-- {
 		node := rest[i].(resolver)
-		node.setNext(last)
+		node.setNextAndRaw(last, raw)
 		last = node
 	}
 	switch f := first.(type) {
 	case *attribRes:
-		f.setNext(last)
+		f.setNextAndRaw(last, raw)
 		return f, nil
 	default:
 		first = &valueRes{expr: first.(fExpr)}
 	} 
-	first.(resolver).setNext(last)
+	first.(resolver).setNextAndRaw(last, raw)
 	return first.(fExpr), nil
 }
 
 Resolver = Attribute / Index
 
-Index = '[' expr:Expression ']' {
+Index = '[' _ expr:Expression _ ']' {
 	return &indexRes{expr: expr.(fExpr)}, nil
 }
 
@@ -178,11 +182,13 @@ Attribute = '.' identifier:Identifier {
 	return identifier, nil
 }
 
-Value =  Bool / Number / String / Identifier / List / Dict / '(' expr:Expression ')' {
-	return expr, nil
+Value =  Bool / None / Number / String / Identifier / List / Dict / Compound
+
+Compound = '(' _ expr:Expression _ ')' {
+	return &compoundNode{expr.(fExpr)}, nil
 }
 
-List = '[' first:Expression rest_:ListElements* ']' {
+List = '[' _ first:Expression _ rest_:ListElements* ']' {
 	rest := toList(rest_)
 	list := make([]fExpr, len(rest)+1)
 	list[0] = first.(fExpr)
@@ -192,30 +198,36 @@ List = '[' first:Expression rest_:ListElements* ']' {
 	return fList(list), nil
 }
 
-ListElements = ',' expr:Expression {
+ListElements = ',' _ expr:Expression _ {
 	return expr, nil
 }
 
-Dict = '{' first_:(Identifier ':' Expression) rest_:(',' Identifier ':' Expression)* '}' {
+Dict = '{' _ first_:(Identifier ':' _ Expression) _ rest_:(',' _ Identifier ':' _ Expression)* _ '}' {
 	first := toList(first_)
 	rest := toList(rest_)
 	dict := make(map[string]fExpr)
-	dict[first[0].(*attribRes).identifier] = first[2].(fExpr)
+	dict[first[0].(*attribRes).identifier] = first[3].(fExpr)
 	for _, kvp_ := range rest {
 		kvp := toList(kvp_)
-		dict[kvp[1].(*attribRes).identifier] = kvp[3].(fExpr)
+		dict[kvp[2].(*attribRes).identifier] = kvp[5].(fExpr)
 	}
 	return fDict(dict), nil
 }
 
 Identifier = [\pL_]+ {
 	return &attribRes{identifier: string(c.text)}, nil
+} / '~' {
+	return &attribRes{}, nil
 }
 
 Bool = "true"i {
 	return fBool(true), nil
 } / "false"i {
 	return fBool(false), nil
+}
+
+None = "none"i {
+	return fNone{}, nil
 }
 
 Number = '-'? Integer ( '.' DecimalDigit+ )? Exponent? {
@@ -250,10 +262,10 @@ HexDigit = [0-9a-f]i
 
 Selector = Recurse / Relative / Dir / Pattern / Filter
 
-Tail = '@' expr:Expression {
+Tail = '|' expr:Expression {
 	Log("Parser: in tail")
 	return &tailSel{expr: expr.(fExpr)}, nil
-} / '@' {
+} / '|' {
 	return &tailSel{}, nil
 }
 
@@ -275,7 +287,7 @@ Recurse = "**/" {
 	return &recurseSel{}, nil
 }
 
-Pattern = [^/@(]+ {
+Pattern = [^/(|]+ {
 	Log("Parser: in 'pattern'")
 	p := regexp.QuoteMeta(string(c.text))
 	p = strings.ReplaceAll(p, "\\*", ".*")
@@ -284,6 +296,8 @@ Pattern = [^/@(]+ {
 	return op, nil
 }
 
-OpStop = '/' / EOF / '@'
+OpStop = '/' / EOF / '|'
+
+_ "whitespace" = [ \t\r\n]*
 
 EOF = !.

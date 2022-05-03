@@ -16,6 +16,7 @@ func defineFlags(homeDir string) {
 		flag.StringVar(&feta.Flags.SitePath, "S", homeDir, "Site directory path")
 		flag.BoolVar(&feta.Flags.SysAbs, "a", false, "System absolute output")
 		flag.BoolVar(&feta.Flags.UglyJSON, "u", false, "Ugly JSON output")
+		flag.BoolVar(&feta.Flags.RawOut, "r", false, "Raw output")
 	}
 }
 
@@ -51,8 +52,6 @@ func main() {
 			feta.Fatal(err)
 		}
 		fmt.Fprint(out, string(res))
-	// case "set":
-	// 	setCmd()
 	default:
 		feta.Fatal("Unknown command: " + flag.Arg(0))
 	}

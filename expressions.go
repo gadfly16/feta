@@ -1,17 +1,19 @@
 package feta
 
 type resolver interface {
-	setNext(resolver)
+	setNextAndRaw(resolver, bool)
 	resolve(*context, fExpr) fExpr
 }
 
 type valueRes struct {
 	expr fExpr
 	next resolver
+	raw  bool
 }
 
-func (node *valueRes) setNext(next resolver) {
+func (node *valueRes) setNextAndRaw(next resolver, raw bool) {
 	node.next = next
+	node.raw = raw
 }
 
 func (node *valueRes) eval(ctx *context) fExpr {
@@ -26,13 +28,39 @@ func (node *valueRes) resolve(ctx *context, ns fExpr) fExpr {
 	return nil
 }
 
+type contextRes struct {
+	next resolver
+	raw  bool
+}
+
+func (node *contextRes) setNextAndRaw(next resolver, raw bool) {
+	node.next = next
+	node.raw = raw
+}
+
+func (node *contextRes) eval(ctx *context) fExpr {
+	return node.resolve(ctx, ctx.meta)
+}
+
+func (node *contextRes) resolve(ctx *context, ns fExpr) fExpr {
+	if node.next == nil {
+		if node.raw {
+			return ctx.meta
+		}
+		return ctx.meta.eval(ctx)
+	}
+	return node.next.resolve(ctx, ctx.meta)
+}
+
 type indexRes struct {
 	expr fExpr
 	next resolver
+	raw  bool
 }
 
-func (node *indexRes) setNext(next resolver) {
+func (node *indexRes) setNextAndRaw(next resolver, raw bool) {
 	node.next = next
+	node.raw = raw
 }
 
 func (node *indexRes) resolve(ctx *context, ns fExpr) fExpr {
@@ -40,24 +68,18 @@ func (node *indexRes) resolve(ctx *context, ns fExpr) fExpr {
 	if fErr, ok := index.(fError); ok {
 		return fErr
 	}
+	var res fExpr
+	var exists bool
 	switch v := ns.(type) {
 	case fDict:
 		i, isStr := index.(fString)
 		if !isStr {
 			return fError{"Dicts can only be indexed with strings."}
 		}
-		res, exists := v[string(i)]
-		if exists {
-			if node.next == nil {
-				return res.eval(ctx)
-			}
-			ns := res.eval(ctx)
-			if fErr, ok := ns.(fError); ok {
-				return fErr
-			}
-			return node.next.resolve(ctx, ns)
+		res, exists = v[string(i)]
+		if !exists {
+			return fNone{}
 		}
-		return nil
 	case fList:
 		i, isNum := index.(fNumber)
 		if !isNum {
@@ -67,26 +89,38 @@ func (node *indexRes) resolve(ctx *context, ns fExpr) fExpr {
 		if ii > len(v)-1 || ii < 0 {
 			return fError{"Index out of range."}
 		}
-		res := v[ii]
-		if node.next == nil {
-			return res.eval(ctx)
-		}
-		ns := res.eval(ctx)
-		if fErr, ok := ns.(fError); ok {
-			return fErr
-		}
-		return node.next.resolve(ctx, ns)
+		res = v[ii]
+	default:
+		return fError{"Only lists and dicts can be indexed."}
 	}
-	return fError{"Only lists and dicts can be indexed."}
+	if node.next == nil {
+		if node.raw {
+			return res
+		}
+		return res.eval(ctx)
+	}
+	if node.raw {
+		switch r := res.(type) {
+		case fDict, fList:
+			return node.next.resolve(ctx, r)
+		}
+	}
+	ns = res.eval(ctx)
+	if fErr, ok := ns.(fError); ok {
+		return fErr
+	}
+	return node.next.resolve(ctx, ns)
 }
 
 type attribRes struct {
 	identifier string
 	next       resolver
+	raw        bool
 }
 
-func (node *attribRes) setNext(next resolver) {
+func (node *attribRes) setNextAndRaw(next resolver, raw bool) {
 	node.next = next
+	node.raw = raw
 }
 
 func (node *attribRes) eval(ctx *context) fExpr {
@@ -94,12 +128,30 @@ func (node *attribRes) eval(ctx *context) fExpr {
 }
 
 func (node *attribRes) resolve(ctx *context, ns fExpr) fExpr {
+	if node.identifier == "" {
+		if node.next == nil {
+			if node.raw {
+				return ns
+			}
+			return ns.eval(ctx)
+		}
+		return node.next.resolve(ctx, ns)
+	}
 	switch t := ns.(type) {
 	case fDict:
 		res, exists := t[node.identifier]
 		if exists {
 			if node.next == nil {
+				if node.raw {
+					return res
+				}
 				return res.eval(ctx)
+			}
+			if node.raw {
+				switch r := res.(type) {
+				case fDict, fList:
+					return node.next.resolve(ctx, r)
+				}
 			}
 			ns := res.eval(ctx)
 			if fErr, ok := ns.(fError); ok {
@@ -107,12 +159,12 @@ func (node *attribRes) resolve(ctx *context, ns fExpr) fExpr {
 			}
 			return node.next.resolve(ctx, ns)
 		}
-		return nil
+		return fNone{}
 	}
 	return fError{"Trying to access name in non-object type."}
 }
 
-type compNode struct {
+type compareNode struct {
 	op    byte
 	left  fExpr
 	right fExpr
@@ -127,7 +179,7 @@ const (
 	GR
 )
 
-func (node *compNode) eval(ctx *context) fExpr {
+func (node *compareNode) eval(ctx *context) fExpr {
 	left := node.left.eval(ctx)
 	if fErr, ok := left.(fError); ok {
 		return fErr
@@ -137,15 +189,25 @@ func (node *compNode) eval(ctx *context) fExpr {
 		return fErr
 	}
 	switch l := left.(type) {
-	case nil:
-		if right == nil {
-			return fBool(true)
+	case fNone:
+		_, same := right.(fNone)
+		switch node.op {
+		case EQ:
+			return fBool(same)
+		case NEQ:
+			return fBool(!same)
 		}
-		return fBool(false)
+		return fError{"None is not orderable."}
 	case fBool:
 		r, same := right.(fBool)
 		if !same {
-			return fBool(false)
+			switch node.op {
+			case EQ:
+				return fBool(false)
+			case NEQ:
+				return fBool(true)
+			}
+			return fError{"Only '==' and '!=' is supported between different types."}
 		}
 		switch node.op {
 		case EQ:
@@ -157,7 +219,13 @@ func (node *compNode) eval(ctx *context) fExpr {
 	case fNumber:
 		r, same := right.(fNumber)
 		if !same {
-			return fBool(false)
+			switch node.op {
+			case EQ:
+				return fBool(false)
+			case NEQ:
+				return fBool(true)
+			}
+			return fError{"Only '==' and '!=' is supported between different types."}
 		}
 		switch node.op {
 		case EQ:
@@ -176,7 +244,13 @@ func (node *compNode) eval(ctx *context) fExpr {
 	case fString:
 		r, same := right.(fString)
 		if !same {
-			return fBool(false)
+			switch node.op {
+			case EQ:
+				return fBool(false)
+			case NEQ:
+				return fBool(true)
+			}
+			return fError{"Only '==' and '!=' is supported between different types."}
 		}
 		switch node.op {
 		case EQ:
@@ -295,4 +369,12 @@ func (node *orNode) eval(ctx *context) fExpr {
 		return fErr
 	}
 	return boolVal(left) || boolVal(right)
+}
+
+type compoundNode struct {
+	expr fExpr
+}
+
+func (node *compoundNode) eval(ctx *context) fExpr {
+	return node.expr.eval(ctx)
 }

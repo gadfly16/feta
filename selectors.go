@@ -8,6 +8,7 @@ import (
 
 type context struct {
 	obj  *object
+	raw  bool
 	meta fExpr
 }
 
@@ -42,7 +43,7 @@ func (sel *dirSel) sel(ctx *context) fList {
 	if ctx.obj.dirEntry.IsDir() {
 		if sel.next != nil {
 			switch n := sel.next.(type) {
-			case *relSel, *recurseSel:
+			case *relSel, *recurseSel, *tailSel:
 				return n.sel(ctx)
 			}
 			res := fList{}
@@ -51,7 +52,7 @@ func (sel *dirSel) sel(ctx *context) fList {
 				return fList{fError{err.Error() + " at " + ctx.obj.fetaPath()}}
 			}
 			for _, ch := range chs {
-				chRes := sel.next.sel(&context{ch, ctx.meta})
+				chRes := sel.next.sel(&context{obj: ch, meta: ctx.meta})
 				res = append(res, chRes...)
 			}
 			return res
@@ -110,7 +111,7 @@ func (sel *relSel) sel(ctx *context) fList {
 		}
 	}
 	if sel.next != nil {
-		return sel.next.sel(&context{anch, ctx.meta})
+		return sel.next.sel(&context{obj: anch, meta: ctx.meta})
 	}
 	return fList{anch}
 }
@@ -169,7 +170,7 @@ func (sel *tailSel) sel(ctx *context) fList {
 			}
 			ns[k] = pr
 		}
-		res["Value"] = ns
+		res["Value"] = ns.eval(ctx)
 		return fList{res}
 	}
 	meta := sel.expr.eval(&context{obj: ctx.obj, meta: ns})
@@ -189,7 +190,7 @@ func (sel *filterSel) setNext(next selector) {
 	sel.next = next
 }
 
-func (sel *filterSel) get(ctx *context) fList {
+func (sel *filterSel) sel(ctx *context) fList {
 	ns, err := ctx.obj.getMeta()
 	if err != nil {
 		return fList{fError{err.Error() + " at " + ctx.obj.fetaPath()}}

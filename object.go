@@ -151,14 +151,9 @@ func (o *object) getMeta() (fDict, error) {
 		}
 		return nil, fmt.Errorf("Couldn't read meta file: %v", err)
 	}
-	raw := make(map[string]interface{})
-	err = json.Unmarshal(js, &raw)
+	meta, err := Parse(path, js, Entrypoint("Expression"))
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't unmarshal meta file '%s': %v", path, err)
-	}
-	meta, err := typeConvert(raw)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't type-convert meta file '%s': %v", path, err)
+		return nil, fmt.Errorf("Couldn't parse meta file '%s': %v", path, err)
 	}
 	insertProcedurals(meta.(fDict))
 	o.meta = meta.(fDict)

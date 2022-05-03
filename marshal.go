@@ -32,6 +32,10 @@ func (value *object) marshal(st *mshState) {
 	st.res = append(st.res, "`"+value.fetaPath()+"`"...)
 }
 
+func (value fError) marshal(st *mshState) {
+	st.res = append(st.res, "error{\""+value.msg+"\"}"...)
+}
+
 func (value fBool) marshal(st *mshState) {
 	if value {
 		st.res = append(st.res, "true"...)
@@ -39,12 +43,16 @@ func (value fBool) marshal(st *mshState) {
 	st.res = append(st.res, "false"...)
 }
 
+func (value fNone) marshal(st *mshState) {
+	st.res = append(st.res, "none"...)
+}
+
 func (value fNumber) marshal(st *mshState) {
 	st.res = append(st.res, strconv.FormatFloat(float64(value), 'f', -1, 64)...)
 }
 
 func (value fString) marshal(st *mshState) {
-	st.res = append(st.res, string(value)...)
+	st.res = append(st.res, "\""+string(value)+"\""...)
 }
 
 func (value fDict) marshal(st *mshState) {
@@ -112,4 +120,26 @@ func (value fList) marshal(st *mshState) {
 	} else {
 		st.res = append(st.res, ']')
 	}
+}
+
+func (node *multNode) marshal(st *mshState) {
+	node.left.(fNode).marshal(st)
+	st.res = append(st.res, node.op)
+	node.right.(fNode).marshal(st)
+}
+
+func (node *addNode) marshal(st *mshState) {
+	node.left.(fNode).marshal(st)
+	st.res = append(st.res, node.op)
+	node.right.(fNode).marshal(st)
+}
+
+func (node *compoundNode) marshal(st *mshState) {
+	st.res = append(st.res, '(')
+	node.expr.(fNode).marshal(st)
+	st.res = append(st.res, ')')
+}
+
+func (node *objProc) marshal(st *mshState) {
+	st.res = append(st.res, "objProc{}"...)
 }

@@ -1,10 +1,5 @@
 package feta
 
-import (
-	"encoding/json"
-	"errors"
-)
-
 type fExpr interface {
 	eval(*context) fExpr
 }
@@ -16,12 +11,15 @@ type (
 	fDict   map[string]fExpr
 	fList   []fExpr
 	fError  struct{ msg string }
+	fNone   struct{}
 )
 
 func boolVal(node fExpr) fBool {
 	switch n := node.(type) {
 	case fBool:
 		return n
+	case fNone:
+		return fBool(false)
 	case fNumber:
 		return n != 0
 	case fString:
@@ -37,6 +35,10 @@ func boolVal(node fExpr) fBool {
 }
 
 func (value fBool) eval(ctx *context) fExpr {
+	return value
+}
+
+func (value fNone) eval(ctx *context) fExpr {
 	return value
 }
 
@@ -76,38 +78,4 @@ func (value fError) eval(ctx *context) fExpr {
 
 func (e fError) Error() string {
 	return e.msg
-}
-
-func (e fError) MarshalJSON() ([]byte, error) {
-	return json.Marshal(e.msg)
-}
-
-func typeConvert(i interface{}) (fExpr, error) {
-	switch t := i.(type) {
-	case map[string]interface{}:
-		m := make(fDict)
-		for k, v := range t {
-			fv, err := typeConvert(v)
-			if err != nil {
-				return nil, err
-			}
-			m[k] = fv
-		}
-		return m, nil
-	case []interface{}:
-		l := make(fList, 0)
-		for _, v := range t {
-			fv, err := typeConvert(v)
-			if err != nil {
-				return nil, err
-			}
-			l = append(l, fv)
-		}
-		return l, nil
-	case float64:
-		return fNumber(t), nil
-	case string:
-		return fString(t), nil
-	}
-	return nil, errors.New("Unknown type found.")
 }

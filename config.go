@@ -5,6 +5,7 @@ type flags struct {
 	SitePath string
 	SysAbs   bool
 	UglyJSON bool
+	RawOut   bool
 }
 
 var Flags flags
