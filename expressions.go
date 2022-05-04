@@ -378,3 +378,11 @@ type compoundNode struct {
 func (node *compoundNode) eval(ctx *context) fExpr {
 	return node.expr.eval(ctx)
 }
+
+type notNode struct {
+	expr fExpr
+}
+
+func (node *notNode) eval(ctx *context) fExpr {
+	return !boolVal(node.expr.eval(ctx))
+}

@@ -39,6 +39,7 @@ func (value fError) marshal(st *mshState) {
 func (value fBool) marshal(st *mshState) {
 	if value {
 		st.res = append(st.res, "true"...)
+		return
 	}
 	st.res = append(st.res, "false"...)
 }
@@ -138,6 +139,11 @@ func (node *compoundNode) marshal(st *mshState) {
 	st.res = append(st.res, '(')
 	node.expr.(fNode).marshal(st)
 	st.res = append(st.res, ')')
+}
+
+func (node *notNode) marshal(st *mshState) {
+	st.res = append(st.res, '!')
+	node.expr.(fNode).marshal(st)
 }
 
 func (node *objProc) marshal(st *mshState) {

@@ -129,7 +129,7 @@ Additive = ('+' / '-') {
 	return &addNode{op: c.text[0]}, nil
 }
 
-Level_D = first:Resolution _ rest_:(Multiplicative _ Resolution)* {
+Level_D = first:Level_E _ rest_:(Multiplicative _ Level_E)* {
 	left := first.(fExpr)
 	rest := toList(rest_)
 	for _, comp_ := range rest {
@@ -144,6 +144,13 @@ Level_D = first:Resolution _ rest_:(Multiplicative _ Resolution)* {
 
 Multiplicative = ('*' / '/') {
 	return &multNode{op: c.text[0]}, nil
+}
+
+Level_E = op:'!'? _ operand:Resolution {
+	if op == nil {
+		return operand, nil
+	}
+	return &notNode{operand.(fExpr)}, nil
 }
 
 Resolution = isRaw:'@'? first:Value rest_:Resolver* {
