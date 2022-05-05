@@ -63,8 +63,9 @@ func (sel *dirSel) sel(ctx *context) fList {
 }
 
 type patternSel struct {
-	rex  *regexp.Regexp
-	next selector
+	rex   *regexp.Regexp
+	multi bool
+	next  selector
 }
 
 func (sel *patternSel) setNext(next selector) {

@@ -13,6 +13,6 @@ func Get(query string, workDir string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't parse query '%s': %v", query, err)
 	}
-	res := ast.(selector).sel(&context{obj: workDirObj})
-	return marshal(res, !Flags.UglyJSON), nil
+	res := ast.(fExpr).eval(&context{obj: workDirObj})
+	return marshal(res.(fNode), !Flags.UglyJSON), nil
 }

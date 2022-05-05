@@ -15,18 +15,33 @@ func toList(v interface{}) []interface{} {
 }
 }
 
-Query = sels_:Selector* tail:Tail? EOF {
+QueryLine = query:Query EOF {
+	return query, nil
+}
+
+Query = sels_:Selector* tail:Tail? {
 	sels := toList(sels_)
 	length := len(sels)
 	var last selector
+	var hasTail bool
+	var multi bool
 	if tail != nil {
 		last = tail.(selector)
+		hasTail = true
 	}
 	if length == 0 {
-		return (&relSel{count: 1, next: last}), nil
+		return &queryNode{&relSel{count: 1, next: last}, multi, hasTail}, nil
 	}
 	for i := length-1; i >= 0; i-- {
 		sel := sels[i].(selector)
+		switch s := sel.(type) {
+		case *patternSel:
+			if s.multi {
+				multi = true
+			}
+		case *filterSel, *recurseSel:
+			multi = true
+		}
 		sel.setNext(last)
 		last = sel
 	}
@@ -39,12 +54,12 @@ Query = sels_:Selector* tail:Tail? EOF {
 				last = sel
 			}
 		case *patternSel:
-			Log("Parser: added dir op")
+			Log("Parser: added dir sel at start")
 			sel := &dirSel{}
 			sel.setNext(last)
 			last = sel
 	}
-	return last, nil
+	return &queryNode{last, multi, hasTail}, nil
 }
 
 // Expression nodes
@@ -189,7 +204,12 @@ Attribute = '.' identifier:Identifier {
 	return identifier, nil
 }
 
-Value =  Bool / None / Number / String / Identifier / List / Dict / Compound
+Value =  Bool / None / Number / String / Identifier / List / Dict / Subquery / Compound
+
+Subquery = "(|" _ query:Query _ ')' {
+	Log("Subquery")
+	return query, nil
+}
 
 Compound = '(' _ expr:Expression _ ')' {
 	return &compoundNode{expr.(fExpr)}, nil
@@ -294,16 +314,19 @@ Recurse = "**/" {
 	return &recurseSel{}, nil
 }
 
-Pattern = [^/(|]+ {
+Pattern = [^/()|]+ {
 	Log("Parser: in 'pattern'")
 	p := regexp.QuoteMeta(string(c.text))
-	p = strings.ReplaceAll(p, "\\*", ".*")
-	p = "^" + p + "$"
-	op := &patternSel{rex: regexp.MustCompile(p)}
-	return op, nil
+	r := strings.ReplaceAll(p, "\\*", ".*")
+	multi := false
+	if r != p {
+		multi = true
+	}
+	rex := regexp.MustCompile("^" + r + "$")
+	return &patternSel{rex: rex, multi: multi}, nil
 }
 
-OpStop = '/' / EOF / '|'
+OpStop = '/' / EOF / '|' / ')'
 
 _ "whitespace" = [ \t\r\n]*
 

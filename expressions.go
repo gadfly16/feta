@@ -386,3 +386,23 @@ type notNode struct {
 func (node *notNode) eval(ctx *context) fExpr {
 	return !boolVal(node.expr.eval(ctx))
 }
+
+type queryNode struct {
+	sel   selector
+	multi bool
+	tail  bool
+}
+
+func (node *queryNode) eval(ctx *context) fExpr {
+	res := node.sel.sel(ctx)
+	if !node.multi && len(res) != 0 {
+		if node.tail {
+			if err, ok := res[0].(fError); ok {
+				return err
+			}
+			return res[0].(fDict)["Value"]
+		}
+		return res[0]
+	}
+	return res
+}
