@@ -4,6 +4,12 @@
     subdata_b: "thing",
     subdata_c: [1,2,3]
   },
+  natsort: {
+    sh_7: "Shot 7",
+    sh_2123: "Shot 2123",
+    sh_312: "Shot 312",
+    sh_40: "Shot 40"
+  },
   exp: (13+12)*32,
   expList: [1+3,5*5],
   expDict: {a: 34-23, b: 12/2.5}

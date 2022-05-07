@@ -1,3 +1,5 @@
+github.com/maruel/natural v1.0.0 h1:C1GqgYygkdnwD1H1psoEVsPazXyUqRooEvX/XyWFFDg=
+github.com/maruel/natural v1.0.0/go.mod h1:eFVhYCcUOfZFxXoDZam8Ktya72wa79fNC3lc/leA0DQ=
 github.com/otiai10/copy v1.7.0 h1:hVoPiN+t+7d2nzzwMiDHPSOogsWAStewq3TwU05+clE=
 github.com/otiai10/copy v1.7.0/go.mod h1:rmRl6QPdJj6EiUqXQ/4Nn2lLXoNQjFCQbbNrxgc/t3U=
 github.com/otiai10/curr v0.0.0-20150429015615-9b4961190c95/go.mod h1:9qAhocn7zKJG+0mI8eUu6xqkFDYS2kb2saOteoSB3cE=

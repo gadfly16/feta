@@ -241,7 +241,7 @@ Dict = '{' _ first_:(Identifier ':' _ Expression) _ rest_:(',' _ Identifier ':' 
 	return fDict(dict), nil
 }
 
-Identifier = [\pL_]+ {
+Identifier = [\pL\pNd_]+ {
 	return &attribRes{identifier: string(c.text)}, nil
 } / '~' {
 	return &attribRes{}, nil

@@ -1,8 +1,11 @@
 package feta
 
 import (
+	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/maruel/natural"
 )
 
 const (
@@ -65,15 +68,19 @@ func (value fDict) marshal(st *mshState) {
 		st.res = append(st.res, '{')
 	}
 	ind = strings.Repeat(" ", st.indent*indentWidth)
-	last := len(value) - 1
+	keys := make([]string, 0, len(value))
+	for k := range value {
+		keys = append(keys, k)
+	}
+	sort.Sort(natural.StringSlice(keys))
 	i := 0
-	for k, v := range value {
+	for _, k := range keys {
 		if st.pretty {
 			st.res = append(st.res, ind...)
 		}
 		st.res = append(st.res, (k + ": ")...)
-		v.(fNode).marshal(st)
-		if i < last {
+		value[k].(fNode).marshal(st)
+		if i < len(value)-1 {
 			if st.pretty {
 				st.res = append(st.res, ",\n"...)
 			} else {
